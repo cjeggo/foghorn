@@ -1,0 +1,24 @@
+# Standalone test fixtures - deliberately NOT part of the recon platform's
+# own docker-compose.override.yml. This should be up/down-able independently
+# of the platform itself, not tied to n8n's lifecycle.
+#
+# Joins n8n-local's existing `demo` network (external, already running) so
+# n8n can reach a target by container hostname without any extra wiring.
+#
+# Usage:
+#   podman compose -f test-targets/docker-compose.yml up -d juice-shop
+#   podman compose -f test-targets/docker-compose.yml down
+
+networks:
+  demo:
+    external: true
+    name: n8n-local_demo
+
+services:
+  juice-shop:
+    image: bkimminich/juice-shop
+    hostname: juice-shop
+    container_name: juice-shop
+    networks: ['demo']
+    ports:
+      - 3000:3000
