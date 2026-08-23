@@ -1,0 +1,1413 @@
+{
+  "updatedAt": "2026-08-23T13:05:10.484Z",
+  "createdAt": "2026-08-23T11:42:19.813Z",
+  "id": "uPsBOR11c3kxhNWV",
+  "name": "Recon - Attack Surface Scan (MVP)",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "e8c92345-d7ee-411d-84c9-8e27e51dc8d1",
+      "name": "Recon Target",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "formTitle": "Recon / Attack-Surface Scan",
+        "formDescription": "Authorized recon scan of a domain or IP.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "target",
+              "placeholder": "example.com or 1.2.3.4",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "authorized",
+              "fieldType": "checkbox",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "scanIntensity",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "dns-only"
+                  },
+                  {
+                    "option": "dns+ports"
+                  },
+                  {
+                    "option": "dns+ports+web"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {},
+        "path": "recon-scan"
+      },
+      "webhookId": "0715503a-1d26-4141-9543-08e6e245f1ae"
+    },
+    {
+      "id": "d4bef2d9-0c60-4703-a86c-16de515c129b",
+      "name": "Validate & Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "jsCode": "\nconst raw = (($json.target) || '').trim().toLowerCase();\nconst authorized = $json.authorized === true || $json.authorized === 'true';\nconst hostnameRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;\nconst ipv4Re = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\nconst ipv6Re = /^[0-9a-f:]+$/i;\nconst isIp = ipv4Re.test(raw) || (raw.includes(':') && ipv6Re.test(raw));\nconst valid = raw.length > 0 && raw.length < 254 && (isIp || hostnameRe.test(raw));\nconst blocked = !authorized ? 'authorization checkbox not confirmed' : (!valid ? 'target failed validation' : null);\nreturn [{ json: { target: raw, isIp, scanIntensity: $json.scanIntensity || 'dns-only', blocked } }];\n"
+      }
+    },
+    {
+      "id": "d442f825-cb10-4cde-ae1c-51a34b6dbe06",
+      "name": "Proceed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "380105df-5805-4814-af0c-e8e86d0fc53b",
+              "leftValue": "={{ $json.blocked }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "db02a343-36ac-4f9a-8972-b0a0f5ea14db",
+      "name": "Blocked",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        560
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'blocked', reason: $json.blocked } }];"
+      }
+    },
+    {
+      "id": "667148a3-18b7-43ae-99a9-5e6790b87154",
+      "name": "DNS Records",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        660,
+        300
+      ],
+      "parameters": {
+        "command": "=echo \"A:\"; dig +short {{$json.target}} A; echo \"AAAA:\"; dig +short {{$json.target}} AAAA; echo \"MX:\"; dig +short {{$json.target}} MX; echo \"NS:\"; dig +short {{$json.target}} NS; echo \"TXT:\"; dig +short {{$json.target}} TXT; echo \"SOA:\"; dig +short {{$json.target}} SOA"
+      }
+    },
+    {
+      "id": "67e3a9c4-8816-47bd-9756-c270561bb3c2",
+      "name": "Parse DNS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "jsCode": "\nconst target = $('Validate & Normalize').item.json.target;\nconst lines = ($json.stdout || '').split('\\n');\nconst records = { A: [], AAAA: [], MX: [], NS: [], TXT: [], SOA: [] };\nlet section = null;\nfor (const line of lines) {\n  const t = line.trim();\n  if (!t) continue;\n  const marker = t.match(/^(A|AAAA|MX|NS|TXT|SOA):$/);\n  if (marker) { section = marker[1]; continue; }\n  if (section && records[section]) records[section].push(t);\n}\nreturn [{ json: { target, records } }];\n"
+      }
+    },
+    {
+      "id": "1aa7014c-1da1-45a1-92d3-ea8de16b0173",
+      "name": "crt.sh Subdomains",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "url": "=https://crt.sh/?q=%25.{{ $('Validate & Normalize').item.json.target }}&output=json",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "a1297f53-00fb-4f14-9e2c-8b7c45b28fee",
+      "name": "Merge DNS + Subdomains",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ],
+      "parameters": {
+        "jsCode": "\nconst dnsInfo = $('Parse DNS').item.json;\nconst norm = $('Validate & Normalize').item.json;\nlet subdomains = [];\ntry {\n  const body = $json.body !== undefined ? $json.body : $json;\n  const arr = Array.isArray(body) ? body : [];\n  const set = new Set();\n  for (const entry of arr) {\n    if (entry && entry.name_value) {\n      entry.name_value.split('\\n').forEach(n => set.add(n.trim().toLowerCase()));\n    }\n  }\n  subdomains = Array.from(set);\n} catch (e) { subdomains = []; }\n\nlet whoisText = '';\ntry { whoisText = $('WHOIS Lookup').item.json.stdout || ''; } catch (e) { whoisText = ''; }\nconst whoisFields = {};\nfor (const line of whoisText.split('\\n')) {\n  const m = line.match(/^\\s*(Registrar|Registrant Organization|Creation Date|Registry Expiry Date|Name Server|Updated Date)\\s*:\\s*(.+)$/i);\n  if (m) {\n    const key = m[1].trim();\n    whoisFields[key] = whoisFields[key] ? [].concat(whoisFields[key], m[2].trim()) : m[2].trim();\n  }\n}\n\nconst resolvedIp = norm.isIp ? norm.target : ((dnsInfo.records.A && dnsInfo.records.A[0]) || null);\n\nconst attckCoverage = [\n  { technique: 'T1590.002', name: 'Gather Victim Network Information: DNS', status: 'executed' },\n  { technique: 'T1596.003', name: 'Search Open Technical Databases: Digital Certificates', status: subdomains.length || !norm.isIp ? 'executed' : 'skipped (IP target, no hostname to query)' },\n  { technique: 'T1596.002', name: 'Search Open Technical Databases: WHOIS', status: whoisText ? 'executed' : 'no data returned' },\n];\n\nreturn [{ json: {\n  target: norm.target, isIp: norm.isIp, scanIntensity: norm.scanIntensity,\n  dns: dnsInfo.records, subdomains, whois: whoisFields, resolvedIp, attckCoverage\n} }];\n"
+      }
+    },
+    {
+      "id": "4352c6b3-7c35-4d77-93e5-f0a372e00684",
+      "name": "Port Scan?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "b935abbb-4169-4113-bbe0-b9a5f4eb4553",
+              "leftValue": "={{ $json.scanIntensity }}",
+              "rightValue": "dns-only",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "96fb1f40-2bae-4a90-9552-bd6ad4243b62",
+              "leftValue": "={{ $json.resolvedIp }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2c576ccd-9ff8-4a2c-a7b6-fb8a4452b396",
+      "name": "Nmap Top Ports",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        220
+      ],
+      "parameters": {
+        "command": "=timeout 120 nmap -sT -Pn -T3 --top-ports 100 -oX - {{$json.resolvedIp}}"
+      }
+    },
+    {
+      "id": "22f5ce68-4479-4aa7-b90e-3f1299c0e8a0",
+      "name": "Parse Nmap",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        220
+      ],
+      "parameters": {
+        "jsCode": "\nconst ctx = $('Merge DNS + Subdomains').item.json;\nconst xml = $json.stdout || '';\nconst ports = [];\nconst re = /<port protocol=\"(\\w+)\" portid=\"(\\d+)\">[\\s\\S]*?<state state=\"(\\w+)\"[^>]*\\/>(?:[\\s\\S]*?<service name=\"([^\"]*)\"[^>]*\\/>)?[\\s\\S]*?<\\/port>/g;\nlet mm;\nwhile ((mm = re.exec(xml)) !== null) {\n  if (mm[3] === 'open') ports.push({ port: Number(mm[2]), protocol: mm[1], service: mm[4] || 'unknown' });\n}\nconst coverage = [...ctx.attckCoverage, { technique: 'T1595.001/.002', name: 'Active Scanning: Scanning IP Blocks / Vulnerability Scanning', status: 'executed' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, portScan: { skipped: false, openPorts: ports } } }];\n"
+      }
+    },
+    {
+      "id": "cb07aa3e-d5ff-4cb0-b2f9-56f774f0f729",
+      "name": "Skip Port Scan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        420
+      ],
+      "parameters": {
+        "jsCode": "\nconst ctx = $('Merge DNS + Subdomains').item.json;\nconst coverage = [...ctx.attckCoverage, { technique: 'T1595.001/.002', name: 'Active Scanning: Scanning IP Blocks / Vulnerability Scanning', status: 'skipped (scanIntensity=dns-only or no resolvable IP)' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, portScan: { skipped: true, reason: 'scanIntensity=dns-only or no resolvable IP' } } }];\n"
+      }
+    },
+    {
+      "id": "f52d9f95-cca8-4e99-bacc-d9b8a6d770bc",
+      "name": "Web Scan?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "1412618a-9890-4fc5-972d-29a8a079e2c5",
+              "leftValue": "={{ $json.scanIntensity }}",
+              "rightValue": "dns+ports+web",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bbfa26c1-19fb-4c51-93a5-de8ca0d5f40c",
+      "name": "Fetch & Crawl",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        220
+      ],
+      "parameters": {
+        "jsCode": "\nconst ctx = $json;\nconst target = ctx.target;\nconst maxPages = 10;\nconst maxDepth = 2;\nconst visited = new Set();\nconst fetchUrl = async (url) => {\n  try {\n    return await this.helpers.httpRequest({ method: 'GET', url, timeout: 10000, returnFullResponse: true, ignoreHttpStatusErrors: true });\n  } catch (e) { return null; }\n};\nlet startUrl = `https://${target}/`;\nlet homepage = await fetchUrl(startUrl);\nif (!homepage) {\n  startUrl = `http://${target}/`;\n  homepage = await fetchUrl(startUrl);\n}\nif (!homepage) {\n  const coverage = [...ctx.attckCoverage, { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'attempted, target unreachable' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, webScan: { skipped: false, reachable: false } } }];\n}\nconst origin = new URL(startUrl).origin;\nconst headers = homepage.headers || {};\nconst queue = [{ url: startUrl, depth: 1 }];\nconst pages = [];\nwhile (queue.length && pages.length < maxPages) {\n  const { url, depth } = queue.shift();\n  if (visited.has(url)) continue;\n  visited.add(url);\n  const res = await fetchUrl(url);\n  if (!res) continue;\n  const body = typeof res.body === 'string' ? res.body : '';\n  const titleMatch = body.match(/<title[^>]*>([^<]*)<\\/title>/i);\n  pages.push({ url, status: res.statusCode, title: titleMatch ? titleMatch[1].trim() : null });\n  if (depth < maxDepth) {\n    const hrefRe = /href=[\"']([^\"'#]+)[\"']/gi;\n    let hm;\n    while ((hm = hrefRe.exec(body)) !== null) {\n      try {\n        const abs = new URL(hm[1], url).href;\n        if (abs.startsWith(origin) && !visited.has(abs) && (queue.length + pages.length) < maxPages) {\n          queue.push({ url: abs, depth: depth + 1 });\n        }\n      } catch (e) {}\n    }\n  }\n}\nlet robotsStatus = null, sitemapStatus = null;\nconst robotsRes = await fetchUrl(`${origin}/robots.txt`);\nif (robotsRes) robotsStatus = robotsRes.statusCode;\nconst sitemapRes = await fetchUrl(`${origin}/sitemap.xml`);\nif (sitemapRes) sitemapStatus = sitemapRes.statusCode;\nconst coverage = [...ctx.attckCoverage, { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'executed' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, webScan: {\n  skipped: false, reachable: true, origin,\n  headers: { server: headers['server'] || null, poweredBy: headers['x-powered-by'] || null },\n  robotsTxtStatus: robotsStatus, sitemapXmlStatus: sitemapStatus,\n  pagesCrawled: pages.length, pages\n} } }];\n"
+      }
+    },
+    {
+      "id": "0579d9e9-1bda-40e2-99e4-9dc70c025b5e",
+      "name": "Skip Web Scan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        420
+      ],
+      "parameters": {
+        "jsCode": "\nconst coverage = [...($json.attckCoverage || []), { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'skipped (scanIntensity != dns+ports+web)' }];\nreturn [{ json: { ...$json, attckCoverage: coverage, webScan: { skipped: true, reason: 'scanIntensity != dns+ports+web' } } }];\n"
+      }
+    },
+    {
+      "id": "aade419a-b04c-4f65-bc0c-8f4e77f917b7",
+      "name": "Build Report Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        300
+      ],
+      "parameters": {
+        "jsCode": "\nconst data = $json;\nconst now = new Date();\nconst pad = n => String(n).padStart(2, '0');\nconst ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;\nreturn [{ json: { ...data, reportTimestamp: ts, reportFilename: `${data.target}-${ts}.md` } }];\n"
+      }
+    },
+    {
+      "id": "08afb225-c9aa-45ce-a70f-f4128f287f8c",
+      "name": "Ollama Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        480
+      ],
+      "parameters": {
+        "model": "qwen3:8b",
+        "options": {}
+      },
+      "credentials": {
+        "ollamaApi": {
+          "id": "vn8oUyNpCDytyAai",
+          "name": "Recon Platform Ollama (IP)"
+        }
+      }
+    },
+    {
+      "id": "633190ce-4ec3-462e-a37b-ad3d016bf3e3",
+      "name": "Analyze & Plan Next Phase",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2860,
+        300
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are supporting an AUTHORIZED external technical assessment of {{$json.target}}. No phishing, social engineering, or any technique targeting people (e.g. T1566, T1598, T1589, T1591) - this platform covers infrastructure/technical reconnaissance only.\n\nGiven the raw JSON recon data below, produce a structured Markdown report with these sections:\n1. MITRE ATT&CK Reconnaissance (TA0043) Coverage - list every entry in the `attckCoverage` array from the raw data verbatim (technique ID, name, status - executed/skipped/no data), formatted as a table. Then in 1-2 sentences note which TA0043 sub-techniques this tool does NOT attempt and why (T1589/T1591/T1593.001/T1598 - all people/social, deliberately out of scope; T1597 Search Closed Sources - requires paid threat-intel access, not in this platform yet).\n2. Attack Surface Summary (2-3 sentences)\n3. DNS, WHOIS & Subdomains (cite whois registrar/creation date/name servers if present in the data)\n4. Open Ports & Services (note if scan was skipped)\n5. Web Application Findings (technologies detected, notable paths, headers of interest)\n6. ATT&CK-Aligned Next-Phase Plan - using the recon findings above, plan the next three MITRE ATT&CK tactics in sequence, each as its own subsection. Only include an item if it traces to a specific finding above; if a tactic has nothing to build on from this data, say so explicitly rather than inventing one.\n   a. Resource Development (TA0042) - infrastructure/capabilities to acquire or stage next (e.g. T1583 Acquire Infrastructure, T1588 Obtain Capabilities, T1585/T1586 Establish/Compromise Accounts matching a detected platform) based on the technologies and services actually observed.\n   b. Initial Access (TA0001), non-human-targeting techniques only - concrete candidate entry points from the observed attack surface (e.g. T1190 Exploit Public-Facing Application against a specific outdated service/version found, T1133 External Remote Services against a specific open port, T1078 Valid Accounts if a login/admin path was found). Name the exact host/port/path/service each candidate targets.\n   c. Execution (TA0002) - once initial access succeeds via one of the above, what execution technique would logically follow given the platform/OS/service fingerprinted (e.g. T1059 Command and Scripting Interpreter, naming the likely interpreter based on the detected stack).\n   For each item across a/b/c: state the MITRE technique ID and name, the specific finding it targets, and why. Use technique IDs from the current MITRE ATT&CK Enterprise matrix.\n7. Caveats - state plainly if there is not enough data to plan meaningfully (e.g. DNS-only scan with no ports/web data), and what a broader scanIntensity would add.\nDo not speculate beyond the provided data - every recommendation must trace back to a specific finding. Raw data:\n{{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "c75d7fc2-366a-4512-92ae-039262e85b57",
+      "name": "Build Report File",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3080,
+        300
+      ],
+      "parameters": {
+        "jsCode": "\nconst ctx = $('Build Report Data').item.json;\nlet summary = $json.text || $json.output || JSON.stringify($json);\n// qwen3 (and similar reasoning models) can emit a raw thinking preamble before\n// the actual answer, sometimes wrapped in <think>...</think>, sometimes not\n// tagged at all. Strip a leading <think> block if present, then drop anything\n// before the first real Markdown heading so stray reasoning text never lands\n// in the saved report.\nsummary = summary.replace(/^[\\s\\S]*?<\\/think>\\s*/i, '');\nconst headingMatch = summary.match(/^#\\s+\\S.*$/m);\nif (headingMatch) {\n  summary = summary.slice(summary.indexOf(headingMatch[0]));\n}\nconst header = `# Recon Report: ${ctx.target}\\n\\n- Timestamp: ${ctx.reportTimestamp}\\n- Scan intensity: ${ctx.scanIntensity}\\n\\n---\\n\\n`;\nreturn [{ json: { ...ctx, reportContent: header + summary.trim() } }];\n"
+      }
+    },
+    {
+      "id": "09d85f59-d28b-4bac-860e-68a4daaf76bc",
+      "name": "Convert Report to File",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        3300,
+        300
+      ],
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "reportContent",
+        "options": {
+          "fileName": "={{$json.reportFilename}}"
+        }
+      }
+    },
+    {
+      "id": "d9db70c4-4c33-4890-9ccc-0173806ff1ae",
+      "name": "Persist Report",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        3520,
+        300
+      ],
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/data/shared/recon/{{ $('Build Report Data').item.json.reportFilename }}",
+        "dataPropertyName": "data"
+      }
+    },
+    {
+      "id": "77ee6599-c40f-4e42-9530-393b4be527c8",
+      "name": "WHOIS Lookup",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        460
+      ],
+      "parameters": {
+        "command": "=timeout 20 whois {{ $('Validate & Normalize').item.json.target }} || true"
+      }
+    },
+    {
+      "id": "2c4f8c8b-2cb6-4aa6-a078-2a1f298d6c10",
+      "name": "Settle Before LLM Call",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2750,
+        300
+      ],
+      "parameters": {
+        "amount": 5
+      }
+    }
+  ],
+  "connections": {
+    "Recon Target": {
+      "main": [
+        [
+          {
+            "node": "Validate & Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Normalize": {
+      "main": [
+        [
+          {
+            "node": "Proceed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Proceed?": {
+      "main": [
+        [
+          {
+            "node": "DNS Records",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DNS Records": {
+      "main": [
+        [
+          {
+            "node": "Parse DNS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse DNS": {
+      "main": [
+        [
+          {
+            "node": "crt.sh Subdomains",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "WHOIS Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "crt.sh Subdomains": {
+      "main": [
+        [
+          {
+            "node": "Merge DNS + Subdomains",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge DNS + Subdomains": {
+      "main": [
+        [
+          {
+            "node": "Port Scan?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Port Scan?": {
+      "main": [
+        [
+          {
+            "node": "Nmap Top Ports",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Port Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nmap Top Ports": {
+      "main": [
+        [
+          {
+            "node": "Parse Nmap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Nmap": {
+      "main": [
+        [
+          {
+            "node": "Web Scan?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Port Scan": {
+      "main": [
+        [
+          {
+            "node": "Web Scan?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web Scan?": {
+      "main": [
+        [
+          {
+            "node": "Fetch & Crawl",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Web Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch & Crawl": {
+      "main": [
+        [
+          {
+            "node": "Build Report Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Web Scan": {
+      "main": [
+        [
+          {
+            "node": "Build Report Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Report Data": {
+      "main": [
+        [
+          {
+            "node": "Settle Before LLM Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyze & Plan Next Phase",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Report File": {
+      "main": [
+        [
+          {
+            "node": "Convert Report to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Report to File": {
+      "main": [
+        [
+          {
+            "node": "Persist Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze & Plan Next Phase": {
+      "main": [
+        [
+          {
+            "node": "Build Report File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settle Before LLM Call": {
+      "main": [
+        [
+          {
+            "node": "Analyze & Plan Next Phase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "d5d4a24e-f055-4152-b8e2-3edea711b697",
+  "activeVersionId": "d5d4a24e-f055-4152-b8e2-3edea711b697",
+  "versionCounter": 15,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-08-23T11:42:19.813Z",
+      "createdAt": "2026-08-23T11:42:19.813Z",
+      "role": "workflow:owner",
+      "workflowId": "uPsBOR11c3kxhNWV",
+      "projectId": "Jg4uS5KGYOhglknu",
+      "project": {
+        "updatedAt": "2026-08-22T10:40:41.556Z",
+        "createdAt": "2026-08-22T10:39:49.139Z",
+        "id": "Jg4uS5KGYOhglknu",
+        "name": "cjeggo <cjeggo@proton.me>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "5681b20b-33b2-405a-92c1-7784c68344c0"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-08-23T13:05:10.485Z",
+    "createdAt": "2026-08-23T13:05:10.485Z",
+    "versionId": "d5d4a24e-f055-4152-b8e2-3edea711b697",
+    "workflowId": "uPsBOR11c3kxhNWV",
+    "nodes": [
+      {
+        "id": "e8c92345-d7ee-411d-84c9-8e27e51dc8d1",
+        "name": "Recon Target",
+        "type": "n8n-nodes-base.formTrigger",
+        "typeVersion": 2.2,
+        "position": [
+          0,
+          300
+        ],
+        "parameters": {
+          "formTitle": "Recon / Attack-Surface Scan",
+          "formDescription": "Authorized recon scan of a domain or IP.",
+          "formFields": {
+            "values": [
+              {
+                "fieldLabel": "target",
+                "placeholder": "example.com or 1.2.3.4",
+                "requiredField": true
+              },
+              {
+                "fieldLabel": "authorized",
+                "fieldType": "checkbox",
+                "requiredField": true
+              },
+              {
+                "fieldLabel": "scanIntensity",
+                "fieldType": "dropdown",
+                "fieldOptions": {
+                  "values": [
+                    {
+                      "option": "dns-only"
+                    },
+                    {
+                      "option": "dns+ports"
+                    },
+                    {
+                      "option": "dns+ports+web"
+                    }
+                  ]
+                },
+                "requiredField": true
+              }
+            ]
+          },
+          "options": {},
+          "path": "recon-scan"
+        },
+        "webhookId": "0715503a-1d26-4141-9543-08e6e245f1ae"
+      },
+      {
+        "id": "d4bef2d9-0c60-4703-a86c-16de515c129b",
+        "name": "Validate & Normalize",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          220,
+          300
+        ],
+        "parameters": {
+          "jsCode": "\nconst raw = (($json.target) || '').trim().toLowerCase();\nconst authorized = $json.authorized === true || $json.authorized === 'true';\nconst hostnameRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;\nconst ipv4Re = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\nconst ipv6Re = /^[0-9a-f:]+$/i;\nconst isIp = ipv4Re.test(raw) || (raw.includes(':') && ipv6Re.test(raw));\nconst valid = raw.length > 0 && raw.length < 254 && (isIp || hostnameRe.test(raw));\nconst blocked = !authorized ? 'authorization checkbox not confirmed' : (!valid ? 'target failed validation' : null);\nreturn [{ json: { target: raw, isIp, scanIntensity: $json.scanIntensity || 'dns-only', blocked } }];\n"
+        }
+      },
+      {
+        "id": "d442f825-cb10-4cde-ae1c-51a34b6dbe06",
+        "name": "Proceed?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          440,
+          300
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "combinator": "and",
+            "conditions": [
+              {
+                "id": "380105df-5805-4814-af0c-e8e86d0fc53b",
+                "leftValue": "={{ $json.blocked }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "empty",
+                  "singleValue": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "db02a343-36ac-4f9a-8972-b0a0f5ea14db",
+        "name": "Blocked",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          660,
+          560
+        ],
+        "parameters": {
+          "jsCode": "return [{ json: { status: 'blocked', reason: $json.blocked } }];"
+        }
+      },
+      {
+        "id": "667148a3-18b7-43ae-99a9-5e6790b87154",
+        "name": "DNS Records",
+        "type": "n8n-nodes-base.executeCommand",
+        "typeVersion": 1,
+        "position": [
+          660,
+          300
+        ],
+        "parameters": {
+          "command": "=echo \"A:\"; dig +short {{$json.target}} A; echo \"AAAA:\"; dig +short {{$json.target}} AAAA; echo \"MX:\"; dig +short {{$json.target}} MX; echo \"NS:\"; dig +short {{$json.target}} NS; echo \"TXT:\"; dig +short {{$json.target}} TXT; echo \"SOA:\"; dig +short {{$json.target}} SOA"
+        }
+      },
+      {
+        "id": "67e3a9c4-8816-47bd-9756-c270561bb3c2",
+        "name": "Parse DNS",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          880,
+          300
+        ],
+        "parameters": {
+          "jsCode": "\nconst target = $('Validate & Normalize').item.json.target;\nconst lines = ($json.stdout || '').split('\\n');\nconst records = { A: [], AAAA: [], MX: [], NS: [], TXT: [], SOA: [] };\nlet section = null;\nfor (const line of lines) {\n  const t = line.trim();\n  if (!t) continue;\n  const marker = t.match(/^(A|AAAA|MX|NS|TXT|SOA):$/);\n  if (marker) { section = marker[1]; continue; }\n  if (section && records[section]) records[section].push(t);\n}\nreturn [{ json: { target, records } }];\n"
+        }
+      },
+      {
+        "id": "1aa7014c-1da1-45a1-92d3-ea8de16b0173",
+        "name": "crt.sh Subdomains",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1100,
+          300
+        ],
+        "parameters": {
+          "url": "=https://crt.sh/?q=%25.{{ $('Validate & Normalize').item.json.target }}&output=json",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "a1297f53-00fb-4f14-9e2c-8b7c45b28fee",
+        "name": "Merge DNS + Subdomains",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1320,
+          300
+        ],
+        "parameters": {
+          "jsCode": "\nconst dnsInfo = $('Parse DNS').item.json;\nconst norm = $('Validate & Normalize').item.json;\nlet subdomains = [];\ntry {\n  const body = $json.body !== undefined ? $json.body : $json;\n  const arr = Array.isArray(body) ? body : [];\n  const set = new Set();\n  for (const entry of arr) {\n    if (entry && entry.name_value) {\n      entry.name_value.split('\\n').forEach(n => set.add(n.trim().toLowerCase()));\n    }\n  }\n  subdomains = Array.from(set);\n} catch (e) { subdomains = []; }\n\nlet whoisText = '';\ntry { whoisText = $('WHOIS Lookup').item.json.stdout || ''; } catch (e) { whoisText = ''; }\nconst whoisFields = {};\nfor (const line of whoisText.split('\\n')) {\n  const m = line.match(/^\\s*(Registrar|Registrant Organization|Creation Date|Registry Expiry Date|Name Server|Updated Date)\\s*:\\s*(.+)$/i);\n  if (m) {\n    const key = m[1].trim();\n    whoisFields[key] = whoisFields[key] ? [].concat(whoisFields[key], m[2].trim()) : m[2].trim();\n  }\n}\n\nconst resolvedIp = norm.isIp ? norm.target : ((dnsInfo.records.A && dnsInfo.records.A[0]) || null);\n\nconst attckCoverage = [\n  { technique: 'T1590.002', name: 'Gather Victim Network Information: DNS', status: 'executed' },\n  { technique: 'T1596.003', name: 'Search Open Technical Databases: Digital Certificates', status: subdomains.length || !norm.isIp ? 'executed' : 'skipped (IP target, no hostname to query)' },\n  { technique: 'T1596.002', name: 'Search Open Technical Databases: WHOIS', status: whoisText ? 'executed' : 'no data returned' },\n];\n\nreturn [{ json: {\n  target: norm.target, isIp: norm.isIp, scanIntensity: norm.scanIntensity,\n  dns: dnsInfo.records, subdomains, whois: whoisFields, resolvedIp, attckCoverage\n} }];\n"
+        }
+      },
+      {
+        "id": "4352c6b3-7c35-4d77-93e5-f0a372e00684",
+        "name": "Port Scan?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          1540,
+          300
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose"
+            },
+            "combinator": "and",
+            "conditions": [
+              {
+                "id": "b935abbb-4169-4113-bbe0-b9a5f4eb4553",
+                "leftValue": "={{ $json.scanIntensity }}",
+                "rightValue": "dns-only",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEquals"
+                }
+              },
+              {
+                "id": "96fb1f40-2bae-4a90-9552-bd6ad4243b62",
+                "leftValue": "={{ $json.resolvedIp }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEmpty",
+                  "singleValue": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "2c576ccd-9ff8-4a2c-a7b6-fb8a4452b396",
+        "name": "Nmap Top Ports",
+        "type": "n8n-nodes-base.executeCommand",
+        "typeVersion": 1,
+        "position": [
+          1760,
+          220
+        ],
+        "parameters": {
+          "command": "=timeout 120 nmap -sT -Pn -T3 --top-ports 100 -oX - {{$json.resolvedIp}}"
+        }
+      },
+      {
+        "id": "22f5ce68-4479-4aa7-b90e-3f1299c0e8a0",
+        "name": "Parse Nmap",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1980,
+          220
+        ],
+        "parameters": {
+          "jsCode": "\nconst ctx = $('Merge DNS + Subdomains').item.json;\nconst xml = $json.stdout || '';\nconst ports = [];\nconst re = /<port protocol=\"(\\w+)\" portid=\"(\\d+)\">[\\s\\S]*?<state state=\"(\\w+)\"[^>]*\\/>(?:[\\s\\S]*?<service name=\"([^\"]*)\"[^>]*\\/>)?[\\s\\S]*?<\\/port>/g;\nlet mm;\nwhile ((mm = re.exec(xml)) !== null) {\n  if (mm[3] === 'open') ports.push({ port: Number(mm[2]), protocol: mm[1], service: mm[4] || 'unknown' });\n}\nconst coverage = [...ctx.attckCoverage, { technique: 'T1595.001/.002', name: 'Active Scanning: Scanning IP Blocks / Vulnerability Scanning', status: 'executed' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, portScan: { skipped: false, openPorts: ports } } }];\n"
+        }
+      },
+      {
+        "id": "cb07aa3e-d5ff-4cb0-b2f9-56f774f0f729",
+        "name": "Skip Port Scan",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1760,
+          420
+        ],
+        "parameters": {
+          "jsCode": "\nconst ctx = $('Merge DNS + Subdomains').item.json;\nconst coverage = [...ctx.attckCoverage, { technique: 'T1595.001/.002', name: 'Active Scanning: Scanning IP Blocks / Vulnerability Scanning', status: 'skipped (scanIntensity=dns-only or no resolvable IP)' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, portScan: { skipped: true, reason: 'scanIntensity=dns-only or no resolvable IP' } } }];\n"
+        }
+      },
+      {
+        "id": "f52d9f95-cca8-4e99-bacc-d9b8a6d770bc",
+        "name": "Web Scan?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          2200,
+          300
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "combinator": "and",
+            "conditions": [
+              {
+                "id": "1412618a-9890-4fc5-972d-29a8a079e2c5",
+                "leftValue": "={{ $json.scanIntensity }}",
+                "rightValue": "dns+ports+web",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "bbfa26c1-19fb-4c51-93a5-de8ca0d5f40c",
+        "name": "Fetch & Crawl",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2420,
+          220
+        ],
+        "parameters": {
+          "jsCode": "\nconst ctx = $json;\nconst target = ctx.target;\nconst maxPages = 10;\nconst maxDepth = 2;\nconst visited = new Set();\nconst fetchUrl = async (url) => {\n  try {\n    return await this.helpers.httpRequest({ method: 'GET', url, timeout: 10000, returnFullResponse: true, ignoreHttpStatusErrors: true });\n  } catch (e) { return null; }\n};\nlet startUrl = `https://${target}/`;\nlet homepage = await fetchUrl(startUrl);\nif (!homepage) {\n  startUrl = `http://${target}/`;\n  homepage = await fetchUrl(startUrl);\n}\nif (!homepage) {\n  const coverage = [...ctx.attckCoverage, { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'attempted, target unreachable' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, webScan: { skipped: false, reachable: false } } }];\n}\nconst origin = new URL(startUrl).origin;\nconst headers = homepage.headers || {};\nconst queue = [{ url: startUrl, depth: 1 }];\nconst pages = [];\nwhile (queue.length && pages.length < maxPages) {\n  const { url, depth } = queue.shift();\n  if (visited.has(url)) continue;\n  visited.add(url);\n  const res = await fetchUrl(url);\n  if (!res) continue;\n  const body = typeof res.body === 'string' ? res.body : '';\n  const titleMatch = body.match(/<title[^>]*>([^<]*)<\\/title>/i);\n  pages.push({ url, status: res.statusCode, title: titleMatch ? titleMatch[1].trim() : null });\n  if (depth < maxDepth) {\n    const hrefRe = /href=[\"']([^\"'#]+)[\"']/gi;\n    let hm;\n    while ((hm = hrefRe.exec(body)) !== null) {\n      try {\n        const abs = new URL(hm[1], url).href;\n        if (abs.startsWith(origin) && !visited.has(abs) && (queue.length + pages.length) < maxPages) {\n          queue.push({ url: abs, depth: depth + 1 });\n        }\n      } catch (e) {}\n    }\n  }\n}\nlet robotsStatus = null, sitemapStatus = null;\nconst robotsRes = await fetchUrl(`${origin}/robots.txt`);\nif (robotsRes) robotsStatus = robotsRes.statusCode;\nconst sitemapRes = await fetchUrl(`${origin}/sitemap.xml`);\nif (sitemapRes) sitemapStatus = sitemapRes.statusCode;\nconst coverage = [...ctx.attckCoverage, { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'executed' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, webScan: {\n  skipped: false, reachable: true, origin,\n  headers: { server: headers['server'] || null, poweredBy: headers['x-powered-by'] || null },\n  robotsTxtStatus: robotsStatus, sitemapXmlStatus: sitemapStatus,\n  pagesCrawled: pages.length, pages\n} } }];\n"
+        }
+      },
+      {
+        "id": "0579d9e9-1bda-40e2-99e4-9dc70c025b5e",
+        "name": "Skip Web Scan",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2420,
+          420
+        ],
+        "parameters": {
+          "jsCode": "\nconst coverage = [...($json.attckCoverage || []), { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'skipped (scanIntensity != dns+ports+web)' }];\nreturn [{ json: { ...$json, attckCoverage: coverage, webScan: { skipped: true, reason: 'scanIntensity != dns+ports+web' } } }];\n"
+        }
+      },
+      {
+        "id": "aade419a-b04c-4f65-bc0c-8f4e77f917b7",
+        "name": "Build Report Data",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2640,
+          300
+        ],
+        "parameters": {
+          "jsCode": "\nconst data = $json;\nconst now = new Date();\nconst pad = n => String(n).padStart(2, '0');\nconst ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;\nreturn [{ json: { ...data, reportTimestamp: ts, reportFilename: `${data.target}-${ts}.md` } }];\n"
+        }
+      },
+      {
+        "id": "08afb225-c9aa-45ce-a70f-f4128f287f8c",
+        "name": "Ollama Chat Model",
+        "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+        "typeVersion": 1,
+        "position": [
+          2860,
+          480
+        ],
+        "parameters": {
+          "model": "qwen3:8b",
+          "options": {}
+        },
+        "credentials": {
+          "ollamaApi": {
+            "id": "vn8oUyNpCDytyAai",
+            "name": "Recon Platform Ollama (IP)"
+          }
+        }
+      },
+      {
+        "id": "633190ce-4ec3-462e-a37b-ad3d016bf3e3",
+        "name": "Analyze & Plan Next Phase",
+        "type": "@n8n/n8n-nodes-langchain.chainLlm",
+        "typeVersion": 1.7,
+        "position": [
+          2860,
+          300
+        ],
+        "parameters": {
+          "promptType": "define",
+          "text": "=You are supporting an AUTHORIZED external technical assessment of {{$json.target}}. No phishing, social engineering, or any technique targeting people (e.g. T1566, T1598, T1589, T1591) - this platform covers infrastructure/technical reconnaissance only.\n\nGiven the raw JSON recon data below, produce a structured Markdown report with these sections:\n1. MITRE ATT&CK Reconnaissance (TA0043) Coverage - list every entry in the `attckCoverage` array from the raw data verbatim (technique ID, name, status - executed/skipped/no data), formatted as a table. Then in 1-2 sentences note which TA0043 sub-techniques this tool does NOT attempt and why (T1589/T1591/T1593.001/T1598 - all people/social, deliberately out of scope; T1597 Search Closed Sources - requires paid threat-intel access, not in this platform yet).\n2. Attack Surface Summary (2-3 sentences)\n3. DNS, WHOIS & Subdomains (cite whois registrar/creation date/name servers if present in the data)\n4. Open Ports & Services (note if scan was skipped)\n5. Web Application Findings (technologies detected, notable paths, headers of interest)\n6. ATT&CK-Aligned Next-Phase Plan - using the recon findings above, plan the next three MITRE ATT&CK tactics in sequence, each as its own subsection. Only include an item if it traces to a specific finding above; if a tactic has nothing to build on from this data, say so explicitly rather than inventing one.\n   a. Resource Development (TA0042) - infrastructure/capabilities to acquire or stage next (e.g. T1583 Acquire Infrastructure, T1588 Obtain Capabilities, T1585/T1586 Establish/Compromise Accounts matching a detected platform) based on the technologies and services actually observed.\n   b. Initial Access (TA0001), non-human-targeting techniques only - concrete candidate entry points from the observed attack surface (e.g. T1190 Exploit Public-Facing Application against a specific outdated service/version found, T1133 External Remote Services against a specific open port, T1078 Valid Accounts if a login/admin path was found). Name the exact host/port/path/service each candidate targets.\n   c. Execution (TA0002) - once initial access succeeds via one of the above, what execution technique would logically follow given the platform/OS/service fingerprinted (e.g. T1059 Command and Scripting Interpreter, naming the likely interpreter based on the detected stack).\n   For each item across a/b/c: state the MITRE technique ID and name, the specific finding it targets, and why. Use technique IDs from the current MITRE ATT&CK Enterprise matrix.\n7. Caveats - state plainly if there is not enough data to plan meaningfully (e.g. DNS-only scan with no ports/web data), and what a broader scanIntensity would add.\nDo not speculate beyond the provided data - every recommendation must trace back to a specific finding. Raw data:\n{{ JSON.stringify($json) }}",
+          "options": {}
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000
+      },
+      {
+        "id": "c75d7fc2-366a-4512-92ae-039262e85b57",
+        "name": "Build Report File",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3080,
+          300
+        ],
+        "parameters": {
+          "jsCode": "\nconst ctx = $('Build Report Data').item.json;\nlet summary = $json.text || $json.output || JSON.stringify($json);\n// qwen3 (and similar reasoning models) can emit a raw thinking preamble before\n// the actual answer, sometimes wrapped in <think>...</think>, sometimes not\n// tagged at all. Strip a leading <think> block if present, then drop anything\n// before the first real Markdown heading so stray reasoning text never lands\n// in the saved report.\nsummary = summary.replace(/^[\\s\\S]*?<\\/think>\\s*/i, '');\nconst headingMatch = summary.match(/^#\\s+\\S.*$/m);\nif (headingMatch) {\n  summary = summary.slice(summary.indexOf(headingMatch[0]));\n}\nconst header = `# Recon Report: ${ctx.target}\\n\\n- Timestamp: ${ctx.reportTimestamp}\\n- Scan intensity: ${ctx.scanIntensity}\\n\\n---\\n\\n`;\nreturn [{ json: { ...ctx, reportContent: header + summary.trim() } }];\n"
+        }
+      },
+      {
+        "id": "09d85f59-d28b-4bac-860e-68a4daaf76bc",
+        "name": "Convert Report to File",
+        "type": "n8n-nodes-base.convertToFile",
+        "typeVersion": 1.1,
+        "position": [
+          3300,
+          300
+        ],
+        "parameters": {
+          "operation": "toText",
+          "sourceProperty": "reportContent",
+          "options": {
+            "fileName": "={{$json.reportFilename}}"
+          }
+        }
+      },
+      {
+        "id": "d9db70c4-4c33-4890-9ccc-0173806ff1ae",
+        "name": "Persist Report",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1,
+        "position": [
+          3520,
+          300
+        ],
+        "parameters": {
+          "operation": "write",
+          "fileName": "=/data/shared/recon/{{ $('Build Report Data').item.json.reportFilename }}",
+          "dataPropertyName": "data"
+        }
+      },
+      {
+        "id": "77ee6599-c40f-4e42-9530-393b4be527c8",
+        "name": "WHOIS Lookup",
+        "type": "n8n-nodes-base.executeCommand",
+        "typeVersion": 1,
+        "position": [
+          1100,
+          460
+        ],
+        "parameters": {
+          "command": "=timeout 20 whois {{ $('Validate & Normalize').item.json.target }} || true"
+        }
+      },
+      {
+        "id": "2c4f8c8b-2cb6-4aa6-a078-2a1f298d6c10",
+        "name": "Settle Before LLM Call",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          2750,
+          300
+        ],
+        "parameters": {
+          "amount": 5
+        }
+      }
+    ],
+    "connections": {
+      "Recon Target": {
+        "main": [
+          [
+            {
+              "node": "Validate & Normalize",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validate & Normalize": {
+        "main": [
+          [
+            {
+              "node": "Proceed?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Proceed?": {
+        "main": [
+          [
+            {
+              "node": "DNS Records",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Blocked",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DNS Records": {
+        "main": [
+          [
+            {
+              "node": "Parse DNS",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse DNS": {
+        "main": [
+          [
+            {
+              "node": "crt.sh Subdomains",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "WHOIS Lookup",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "crt.sh Subdomains": {
+        "main": [
+          [
+            {
+              "node": "Merge DNS + Subdomains",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge DNS + Subdomains": {
+        "main": [
+          [
+            {
+              "node": "Port Scan?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Port Scan?": {
+        "main": [
+          [
+            {
+              "node": "Nmap Top Ports",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Skip Port Scan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Nmap Top Ports": {
+        "main": [
+          [
+            {
+              "node": "Parse Nmap",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Nmap": {
+        "main": [
+          [
+            {
+              "node": "Web Scan?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Skip Port Scan": {
+        "main": [
+          [
+            {
+              "node": "Web Scan?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Web Scan?": {
+        "main": [
+          [
+            {
+              "node": "Fetch & Crawl",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Skip Web Scan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch & Crawl": {
+        "main": [
+          [
+            {
+              "node": "Build Report Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Skip Web Scan": {
+        "main": [
+          [
+            {
+              "node": "Build Report Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Report Data": {
+        "main": [
+          [
+            {
+              "node": "Settle Before LLM Call",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ollama Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Analyze & Plan Next Phase",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Report File": {
+        "main": [
+          [
+            {
+              "node": "Convert Report to File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Convert Report to File": {
+        "main": [
+          [
+            {
+              "node": "Persist Report",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Analyze & Plan Next Phase": {
+        "main": [
+          [
+            {
+              "node": "Build Report File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Settle Before LLM Call": {
+        "main": [
+          [
+            {
+              "node": "Analyze & Plan Next Phase",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "cjeggo",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-08-23T13:05:10.505Z",
+        "id": 27,
+        "workflowId": "uPsBOR11c3kxhNWV",
+        "versionId": "d5d4a24e-f055-4152-b8e2-3edea711b697",
+        "event": "deactivated",
+        "userId": "5681b20b-33b2-405a-92c1-7784c68344c0"
+      },
+      {
+        "createdAt": "2026-08-23T13:05:10.512Z",
+        "id": 28,
+        "workflowId": "uPsBOR11c3kxhNWV",
+        "versionId": "d5d4a24e-f055-4152-b8e2-3edea711b697",
+        "event": "activated",
+        "userId": "5681b20b-33b2-405a-92c1-7784c68344c0"
+      }
+    ]
+  }
+}

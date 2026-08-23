@@ -1,5 +1,15 @@
-FROM n8nio/n8n:latest
-USER root
-RUN apk add --no-cache bind-tools nmap python3 py3-pip && \
-    pip install --no-cache-dir --break-system-packages sqlmap recon-ng
+# n8nio/n8n:latest ships as a "Docker Hardened Image" with no package manager
+# (no apk binary, even as root) - can't apk-install tooling onto it directly.
+# Rebuild n8n on plain node:20-alpine instead, which has a real apk, and add
+# the recon/fuzzing CLI tools alongside it.
+FROM node:20-alpine
+# recon-ng isn't a pip package - it's a plain git-clone-and-run CLI tool.
+RUN apk add --no-cache bind-tools nmap whois python3 py3-pip git tini && \
+    pip install --no-cache-dir --break-system-packages sqlmap && \
+    git clone --depth 1 https://github.com/lanmaster53/recon-ng.git /opt/recon-ng && \
+    pip install --no-cache-dir --break-system-packages -r /opt/recon-ng/REQUIREMENTS && \
+    ln -s /opt/recon-ng/recon-cli /usr/local/bin/recon-cli && \
+    ln -s /opt/recon-ng/recon-ng /usr/local/bin/recon-ng && \
+    npm install -g n8n
 USER node
+ENTRYPOINT ["tini", "--", "n8n"]

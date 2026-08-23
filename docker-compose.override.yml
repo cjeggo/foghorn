@@ -1,13 +1,25 @@
 services:
   n8n:
     build:
-      context: .
+      context: ../security-testing-platform
       dockerfile: Dockerfile.n8n
+    environment:
+      # n8n >=2.x excludes Execute Command by default as a security precaution
+      # (arbitrary shell exec). This platform's whole point is running dig/nmap/
+      # sqlmap/recon-ng via that node, gated behind the workflow's own
+      # authorization checkbox - so re-enable it here rather than at the n8n level.
+      - NODES_EXCLUDE=[]
+      # n8n-local's base .env only allowlists /vault and /vault-write for file
+      # nodes. Recon reports write to /data/shared/recon, which needs adding
+      # explicitly or every write is silently rejected as "not writable".
+      - N8N_RESTRICT_FILE_ACCESS_TO=/vault;/vault-write;/data/shared
 
   n8n-import:
     build:
-      context: .
+      context: ../security-testing-platform
       dockerfile: Dockerfile.n8n
+    environment:
+      - NODES_EXCLUDE=[]
 
   zap:
     image: zaproxy/zap-stable
