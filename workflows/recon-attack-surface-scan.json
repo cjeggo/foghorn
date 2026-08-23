@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-23T13:05:10.484Z",
+  "updatedAt": "2026-08-23T13:11:15.300Z",
   "createdAt": "2026-08-23T11:42:19.813Z",
   "id": "uPsBOR11c3kxhNWV",
   "name": "Recon - Attack Surface Scan (MVP)",
@@ -686,9 +686,9 @@
   "staticData": null,
   "meta": null,
   "pinData": null,
-  "versionId": "d5d4a24e-f055-4152-b8e2-3edea711b697",
-  "activeVersionId": "d5d4a24e-f055-4152-b8e2-3edea711b697",
-  "versionCounter": 15,
+  "versionId": "e54a7122-51c1-4159-a974-d22316378bbe",
+  "activeVersionId": "e54a7122-51c1-4159-a974-d22316378bbe",
+  "versionCounter": 17,
   "triggerCount": 1,
   "shared": [
     {
@@ -711,9 +711,9 @@
   ],
   "tags": [],
   "activeVersion": {
-    "updatedAt": "2026-08-23T13:05:10.485Z",
-    "createdAt": "2026-08-23T13:05:10.485Z",
-    "versionId": "d5d4a24e-f055-4152-b8e2-3edea711b697",
+    "updatedAt": "2026-08-23T13:11:15.302Z",
+    "createdAt": "2026-08-23T13:11:15.302Z",
+    "versionId": "e54a7122-51c1-4159-a974-d22316378bbe",
     "workflowId": "uPsBOR11c3kxhNWV",
     "nodes": [
       {
@@ -1393,18 +1393,18 @@
     "autosaved": false,
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-08-23T13:05:10.505Z",
-        "id": 27,
+        "createdAt": "2026-08-23T13:11:15.325Z",
+        "id": 31,
         "workflowId": "uPsBOR11c3kxhNWV",
-        "versionId": "d5d4a24e-f055-4152-b8e2-3edea711b697",
+        "versionId": "e54a7122-51c1-4159-a974-d22316378bbe",
         "event": "deactivated",
         "userId": "5681b20b-33b2-405a-92c1-7784c68344c0"
       },
       {
-        "createdAt": "2026-08-23T13:05:10.512Z",
-        "id": 28,
+        "createdAt": "2026-08-23T13:11:15.333Z",
+        "id": 32,
         "workflowId": "uPsBOR11c3kxhNWV",
-        "versionId": "d5d4a24e-f055-4152-b8e2-3edea711b697",
+        "versionId": "e54a7122-51c1-4159-a974-d22316378bbe",
         "event": "activated",
         "userId": "5681b20b-33b2-405a-92c1-7784c68344c0"
       }
