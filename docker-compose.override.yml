@@ -27,6 +27,13 @@ services:
     container_name: zap
     networks: ['demo']
     profiles: ['fuzzing']
-    command: zap.sh -daemon -host 0.0.0.0 -port 8090 -config api.disablekey=true
+    # ZAP restricts its API to permitted client addresses even with disablekey
+    # set - without the addrs.addr.* config below it rejects every request
+    # from the n8n container with "not permitted".
+    command: >
+      zap.sh -daemon -host 0.0.0.0 -port 8090
+      -config api.disablekey=true
+      -config api.addrs.addr.name=.*
+      -config api.addrs.addr.regex=true
     ports:
       - 8090:8090
