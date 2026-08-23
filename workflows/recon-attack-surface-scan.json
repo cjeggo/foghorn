@@ -1,5 +1,5 @@
 {
- "updatedAt": "2026-08-23T16:24:15.209Z",
+ "updatedAt": "2026-08-23T16:44:54.366Z",
  "createdAt": "2026-08-23T15:53:40.878Z",
  "id": "RMJAXbF2cVeHL4Rb",
  "name": "Recon - Attack Surface Scan (MVP)",
@@ -218,7 +218,7 @@
     }
    },
    "id": "a1000000-0000-4000-8000-000000000008",
-   "name": "Dispatch Single Host Recon",
+   "name": "Dispatch Single Host Recon (Sweep)",
    "type": "n8n-nodes-base.executeWorkflow",
    "typeVersion": 1.2,
    "position": [
@@ -316,6 +316,35 @@
     1792,
     432
    ]
+  },
+  {
+   "parameters": {
+    "workflowId": {
+     "__rl": true,
+     "value": "kib34AggAcopWJZ9",
+     "mode": "id"
+    },
+    "workflowInputs": {
+     "value": {
+      "target": "={{ $json.target }}",
+      "isIp": "={{ $json.isIp }}",
+      "scanIntensity": "={{ $json.scanIntensity }}",
+      "sqlInjectionTest": "={{ $('Recon Target').item.json.sqlInjectionTest }}",
+      "webVulnScan": "={{ $('Recon Target').item.json.webVulnScan }}"
+     }
+    },
+    "options": {
+     "waitForSubWorkflow": true
+    }
+   },
+   "id": "a1000000-0000-4000-8000-00000000000e",
+   "name": "Dispatch Single Host Recon (Direct)",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "typeVersion": 1.2,
+   "position": [
+    1344,
+    632
+   ]
   }
  ],
  "connections": {
@@ -370,7 +399,7 @@
     ],
     [
      {
-      "node": "Dispatch Single Host Recon",
+      "node": "Dispatch Single Host Recon (Direct)",
       "type": "main",
       "index": 0
      }
@@ -393,17 +422,6 @@
     [
      {
       "node": "Reachable Hosts?",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Dispatch Single Host Recon": {
-   "main": [
-    [
-     {
-      "node": "Build Network Sweep Summary",
       "type": "main",
       "index": 0
      }
@@ -436,7 +454,7 @@
    "main": [
     [
      {
-      "node": "Dispatch Single Host Recon",
+      "node": "Dispatch Single Host Recon (Sweep)",
       "type": "main",
       "index": 0
      }
@@ -460,6 +478,17 @@
      }
     ]
    ]
+  },
+  "Dispatch Single Host Recon (Sweep)": {
+   "main": [
+    [
+     {
+      "node": "Build Network Sweep Summary",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
   }
  },
  "settings": {
@@ -469,9 +498,9 @@
  "staticData": null,
  "meta": null,
  "pinData": {},
- "versionId": "69967f34-5004-49ff-93e4-59ffb7456a4d",
- "activeVersionId": "5b729ccb-fbf2-42d9-95c8-c641d4e7e8f9",
- "versionCounter": 26,
+ "versionId": "6d7fedfe-007c-40d5-bd3a-d7b178a49a14",
+ "activeVersionId": "6d7fedfe-007c-40d5-bd3a-d7b178a49a14",
+ "versionCounter": 31,
  "triggerCount": 1,
  "shared": [
   {
@@ -494,9 +523,9 @@
  ],
  "tags": [],
  "activeVersion": {
-  "updatedAt": "2026-08-23T16:20:36.637Z",
-  "createdAt": "2026-08-23T16:20:36.637Z",
-  "versionId": "5b729ccb-fbf2-42d9-95c8-c641d4e7e8f9",
+  "updatedAt": "2026-08-23T16:44:54.368Z",
+  "createdAt": "2026-08-23T16:44:54.368Z",
+  "versionId": "6d7fedfe-007c-40d5-bd3a-d7b178a49a14",
   "workflowId": "RMJAXbF2cVeHL4Rb",
   "nodes": [
    {
@@ -566,7 +595,7 @@
     "typeVersion": 2.2,
     "position": [
      0,
-     432
+     504
     ],
     "webhookId": "a1000000-1d26-4141-9543-08e6e245f1ae"
    },
@@ -580,7 +609,7 @@
     "typeVersion": 2,
     "position": [
      224,
-     432
+     504
     ]
    },
    {
@@ -604,7 +633,8 @@
        }
       ],
       "combinator": "and"
-     }
+     },
+     "options": {}
     },
     "id": "a1000000-0000-4000-8000-000000000003",
     "name": "Proceed?",
@@ -612,7 +642,7 @@
     "typeVersion": 2.2,
     "position": [
      448,
-     432
+     504
     ]
    },
    {
@@ -625,7 +655,7 @@
     "typeVersion": 2,
     "position": [
      672,
-     632
+     600
     ]
    },
    {
@@ -649,7 +679,8 @@
        }
       ],
       "combinator": "and"
-     }
+     },
+     "options": {}
     },
     "id": "a1000000-0000-4000-8000-000000000005",
     "name": "Is CIDR?",
@@ -657,7 +688,7 @@
     "typeVersion": 2.2,
     "position": [
      672,
-     332
+     408
     ]
    },
    {
@@ -670,7 +701,7 @@
     "typeVersion": 1,
     "position": [
      896,
-     232
+     336
     ],
     "onError": "continueRegularOutput"
    },
@@ -684,7 +715,7 @@
     "typeVersion": 2,
     "position": [
      1120,
-     232
+     336
     ]
    },
    {
@@ -708,17 +739,16 @@
      }
     },
     "id": "a1000000-0000-4000-8000-000000000008",
-    "name": "Dispatch Single Host Recon",
+    "name": "Dispatch Single Host Recon (Sweep)",
     "type": "n8n-nodes-base.executeWorkflow",
     "typeVersion": 1.2,
     "position": [
-     1344,
-     332
+     1568,
+     240
     ]
    },
    {
     "parameters": {
-     "mode": "runOnceForAllItems",
      "jsCode": "\nconst items = $input.all();\nconst norm = $('Validate & Normalize').item.json;\nconst now = new Date();\nconst stamp = now.toISOString().replace(/[-:T]/g,'').slice(0,15).replace(/(\\d{8})(\\d{6})/, '$1-$2');\nlet rows = items.map(it => {\n  const j = it.json;\n  const t = j.target || (j.__cidr ? j.__cidr : 'unknown');\n  return `| ${t} | see recon/${t}-*.md |`;\n}).join('\\n');\nconst summaryContent = `# Network Sweep Summary: ${norm.target}\\n\\n- Timestamp: ${stamp}\\n- Hosts discovered: ${items[0]?.json?.__hostsDiscovered ?? 0}\\n- Hosts scanned: ${items.length}\\n\\n| Host | Report |\\n|---|---|\\n${rows}\\n`;\nreturn [{ json: { summaryContent, summaryFilename: `network-sweep-${norm.target.replace(/\\//g,'_')}-${stamp}.md` } }];\n"
     },
     "id": "a1000000-0000-4000-8000-000000000009",
@@ -726,8 +756,8 @@
     "type": "n8n-nodes-base.code",
     "typeVersion": 2,
     "position": [
-     1568,
-     232
+     1792,
+     240
     ]
    },
    {
@@ -743,22 +773,23 @@
     "type": "n8n-nodes-base.convertToFile",
     "typeVersion": 1.1,
     "position": [
-     1792,
-     232
+     2016,
+     336
     ]
    },
    {
     "parameters": {
      "operation": "write",
-     "fileName": "=/data/shared/recon/{{ $binary.data.fileName }}"
+     "fileName": "=/data/shared/recon/{{ $binary.data.fileName }}",
+     "options": {}
     },
     "id": "a1000000-0000-4000-8000-00000000000b",
     "name": "Persist Sweep Summary",
     "type": "n8n-nodes-base.readWriteFile",
     "typeVersion": 1,
     "position": [
-     2016,
-     232
+     2240,
+     336
     ]
    },
    {
@@ -782,7 +813,8 @@
        }
       ],
       "combinator": "and"
-     }
+     },
+     "options": {}
     },
     "id": "a1000000-0000-4000-8000-00000000000c",
     "name": "Reachable Hosts?",
@@ -790,12 +822,11 @@
     "typeVersion": 2.2,
     "position": [
      1344,
-     232
+     336
     ]
    },
    {
     "parameters": {
-     "mode": "runOnceForAllItems",
      "jsCode": "\nconst items = $input.all();\nconst norm = $('Validate & Normalize').item.json;\nconst item = items[0]?.json || {};\nconst now = new Date();\nconst stamp = now.toISOString().replace(/[-:T]/g,'').slice(0,15).replace(/(\\d{8})(\\d{6})/, '$1-$2');\nlet reason;\nif (item.unroutable) {\n  reason = `${item.hostsDiscovered} of ${item.totalInRange} addresses in ${norm.target} reported \"up\" during host discovery. That is an implausibly high live-host ratio for any real network and matches this platform's known NAT limitation: the scanning container has no real route to this range, and the podman/gvproxy NAT layer fabricates connection-refused responses for unroutable destinations rather than timing out. Treating this range as unroutable from the current scanning platform rather than reporting fabricated per-host findings.`;\n} else {\n  reason = `0 of ${item.totalInRange || '?'} addresses in ${norm.target} responded to host discovery. Either the range is genuinely empty/down, or (as with other private ranges on this platform) it is not reachable from the scanning container at all. No per-host recon was dispatched.`;\n}\nconst summaryContent = `# Network Sweep Summary: ${norm.target}\\n\\n- Timestamp: ${stamp}\\n- Status: unroutable\\n\\n${reason}\\n`;\nreturn [{ json: { summaryContent, summaryFilename: `network-sweep-${norm.target.replace(/\\//g,'_')}-${stamp}.md` } }];\n"
     },
     "id": "a1000000-0000-4000-8000-00000000000d",
@@ -803,8 +834,37 @@
     "type": "n8n-nodes-base.code",
     "typeVersion": 2,
     "position": [
-     1344,
+     1792,
      432
+    ]
+   },
+   {
+    "parameters": {
+     "workflowId": {
+      "__rl": true,
+      "value": "kib34AggAcopWJZ9",
+      "mode": "id"
+     },
+     "workflowInputs": {
+      "value": {
+       "target": "={{ $json.target }}",
+       "isIp": "={{ $json.isIp }}",
+       "scanIntensity": "={{ $json.scanIntensity }}",
+       "sqlInjectionTest": "={{ $('Recon Target').item.json.sqlInjectionTest }}",
+       "webVulnScan": "={{ $('Recon Target').item.json.webVulnScan }}"
+      }
+     },
+     "options": {
+      "waitForSubWorkflow": true
+     }
+    },
+    "id": "a1000000-0000-4000-8000-00000000000e",
+    "name": "Dispatch Single Host Recon (Direct)",
+    "type": "n8n-nodes-base.executeWorkflow",
+    "typeVersion": 1.2,
+    "position": [
+     1344,
+     632
     ]
    }
   ],
@@ -860,7 +920,7 @@
      ],
      [
       {
-       "node": "Dispatch Single Host Recon",
+       "node": "Dispatch Single Host Recon (Direct)",
        "type": "main",
        "index": 0
       }
@@ -883,17 +943,6 @@
      [
       {
        "node": "Reachable Hosts?",
-       "type": "main",
-       "index": 0
-      }
-     ]
-    ]
-   },
-   "Dispatch Single Host Recon": {
-    "main": [
-     [
-      {
-       "node": "Build Network Sweep Summary",
        "type": "main",
        "index": 0
       }
@@ -926,7 +975,7 @@
     "main": [
      [
       {
-       "node": "Dispatch Single Host Recon",
+       "node": "Dispatch Single Host Recon (Sweep)",
        "type": "main",
        "index": 0
       }
@@ -950,6 +999,17 @@
       }
      ]
     ]
+   },
+   "Dispatch Single Host Recon (Sweep)": {
+    "main": [
+     [
+      {
+       "node": "Build Network Sweep Summary",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
    }
   },
   "authors": "cjeggo",
@@ -958,34 +1018,34 @@
   "autosaved": false,
   "workflowPublishHistory": [
    {
-    "createdAt": "2026-08-23T16:20:36.655Z",
-    "id": 17,
+    "createdAt": "2026-08-23T16:44:54.404Z",
+    "id": 33,
     "workflowId": "RMJAXbF2cVeHL4Rb",
-    "versionId": "5b729ccb-fbf2-42d9-95c8-c641d4e7e8f9",
+    "versionId": "6d7fedfe-007c-40d5-bd3a-d7b178a49a14",
     "event": "deactivated",
     "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
    },
    {
-    "createdAt": "2026-08-23T16:20:36.660Z",
-    "id": 18,
+    "createdAt": "2026-08-23T16:44:54.415Z",
+    "id": 34,
     "workflowId": "RMJAXbF2cVeHL4Rb",
-    "versionId": "5b729ccb-fbf2-42d9-95c8-c641d4e7e8f9",
+    "versionId": "6d7fedfe-007c-40d5-bd3a-d7b178a49a14",
     "event": "activated",
     "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
    },
    {
-    "createdAt": "2026-08-23T16:20:36.676Z",
-    "id": 19,
+    "createdAt": "2026-08-23T16:44:54.445Z",
+    "id": 35,
     "workflowId": "RMJAXbF2cVeHL4Rb",
-    "versionId": "5b729ccb-fbf2-42d9-95c8-c641d4e7e8f9",
+    "versionId": "6d7fedfe-007c-40d5-bd3a-d7b178a49a14",
     "event": "deactivated",
     "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
    },
    {
-    "createdAt": "2026-08-23T16:20:36.681Z",
-    "id": 20,
+    "createdAt": "2026-08-23T16:44:54.454Z",
+    "id": 36,
     "workflowId": "RMJAXbF2cVeHL4Rb",
-    "versionId": "5b729ccb-fbf2-42d9-95c8-c641d4e7e8f9",
+    "versionId": "6d7fedfe-007c-40d5-bd3a-d7b178a49a14",
     "event": "activated",
     "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
    }
