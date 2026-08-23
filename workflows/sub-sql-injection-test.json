@@ -1,5 +1,5 @@
 {
- "updatedAt": "2026-08-23T15:51:57.916Z",
+ "updatedAt": "2026-08-23T17:06:38.912Z",
  "createdAt": "2026-08-23T15:51:57.916Z",
  "id": "HjvzYBrZoCyVASl3",
  "name": "Sub - SQL Injection Test (sqlmap)",
@@ -24,6 +24,9 @@
       },
       {
        "name": "origin"
+      },
+      {
+       "name": "parameterizedRequests"
       }
      ]
     }
@@ -39,7 +42,7 @@
     0
    ],
    "parameters": {
-    "jsCode": "\nconst origin = $json.origin;\nconst command = `timeout 180 sqlmap -u \"${origin}/\" --crawl=2 --forms --batch --level=1 --risk=1 --output-dir=/tmp/sqlmap --disable-coloring 2>&1 || true`;\nreturn [{ json: { target: $json.target, origin, command } }];\n"
+    "jsCode": "\nconst parameterizedRequests = $json.parameterizedRequests || [];\nconst target = $json.target;\nconst origin = $json.origin;\n\nconst safeUrlRe = /^https?:\\/\\/[a-zA-Z0-9.\\-]+(:\\d+)?\\/[a-zA-Z0-9\\/_\\-.%=&?+~]*$/;\n// Well-known real-time/infra protocol paths that carry no real application\n// parameters (Socket.IO's polling handshake, webpack HMR, etc.) - generic\n// across many JS frameworks, not specific to any one target.\nconst infraPathRe = /\\/(socket\\.io|sockjs-node|__webpack_hmr|hot-update)\\//i;\n// Protocol-token param names that indicate a transport/handshake query\n// string rather than application data.\nconst infraParamRe = /^(EIO|transport|sid|t|callback|jsonp)$/i;\n\nfunction looksLikeAppParam(url) {\n  const q = url.split('?')[1];\n  if (!q) return true; // POST body case, no query string to judge\n  const names = q.split('&').map(p => p.split('=')[0]);\n  return names.some(n => n && !infraParamRe.test(n));\n}\n\nconst candidates = parameterizedRequests.filter(r =>\n  r && r.method === 'GET' && r.url && r.url.startsWith(origin) && safeUrlRe.test(r.url) &&\n  !r.url.includes(\"'\") && !infraPathRe.test(r.url) && looksLikeAppParam(r.url)\n);\nconst chosen = candidates[0];\n\nlet command, targetsUsed = [], fallbackCrawl = false;\nif (chosen) {\n  command = `timeout 150 sqlmap -u '${chosen.url}' --batch --level=1 --risk=1 --output-dir=/tmp/sqlmap --disable-coloring 2>&1 || true`;\n  targetsUsed = [chosen.url];\n} else {\n  command = `timeout 150 sqlmap -u \"${origin}/\" --crawl=2 --forms --batch --level=1 --risk=1 --output-dir=/tmp/sqlmap --disable-coloring 2>&1 || true`;\n  fallbackCrawl = true;\n}\nreturn [{ json: { target, origin, command, targetsUsed, fallbackCrawl, candidateCount: candidates.length } }];\n"
    }
   },
   {
@@ -65,7 +68,7 @@
     0
    ],
    "parameters": {
-    "jsCode": "\nconst stdout = $json.stdout || '';\nconst findings = [];\nconst paramBlocks = stdout.split(/Parameter:\\s+/).slice(1);\nfor (const block of paramBlocks) {\n  const paramName = block.split(/[\\s(]/)[0];\n  const typeMatch = block.match(/Type:\\s*(.+)/);\n  const titleMatch = block.match(/Title:\\s*(.+)/);\n  findings.push({ parameter: paramName, type: typeMatch ? typeMatch[1].trim() : null, title: titleMatch ? titleMatch[1].trim() : null });\n}\nconst vulnerable = /sqlmap identified the following injection point/i.test(stdout) || findings.length > 0;\nreturn [{ json: { skipped: false, vulnerable, findings } }];\n"
+    "jsCode": "\nconst stdout = $json.stdout || '';\nconst findings = [];\nconst paramBlocks = stdout.split(/Parameter:\\s+/).slice(1);\nfor (const block of paramBlocks) {\n  const paramName = block.split(/[\\s(]/)[0];\n  const typeMatch = block.match(/Type:\\s*(.+)/);\n  const titleMatch = block.match(/Title:\\s*(.+)/);\n  findings.push({ parameter: paramName, type: typeMatch ? typeMatch[1].trim() : null, title: titleMatch ? titleMatch[1].trim() : null });\n}\nconst vulnerable = /sqlmap identified the following injection point/i.test(stdout) || findings.length > 0;\nreturn [{ json: { skipped: false, vulnerable, findings, targetsUsed: $('Build SQLMap Command').item.json.targetsUsed, fallbackCrawl: $('Build SQLMap Command').item.json.fallbackCrawl } }];\n"
    }
   }
  ],
@@ -112,9 +115,9 @@
  "staticData": null,
  "meta": null,
  "pinData": null,
- "versionId": "dccd5191-cbea-40ee-b048-1fdfa6f1961d",
- "activeVersionId": "dccd5191-cbea-40ee-b048-1fdfa6f1961d",
- "versionCounter": 5,
+ "versionId": "4c4f4ca7-eb42-4ad5-a28b-4a94969d2ea1",
+ "activeVersionId": "4c4f4ca7-eb42-4ad5-a28b-4a94969d2ea1",
+ "versionCounter": 15,
  "triggerCount": 0,
  "shared": [
   {
@@ -137,9 +140,9 @@
  ],
  "tags": [],
  "activeVersion": {
-  "updatedAt": "2026-08-23T15:51:57.922Z",
-  "createdAt": "2026-08-23T15:51:57.922Z",
-  "versionId": "dccd5191-cbea-40ee-b048-1fdfa6f1961d",
+  "updatedAt": "2026-08-23T17:06:38.914Z",
+  "createdAt": "2026-08-23T17:06:38.914Z",
+  "versionId": "4c4f4ca7-eb42-4ad5-a28b-4a94969d2ea1",
   "workflowId": "HjvzYBrZoCyVASl3",
   "nodes": [
    {
@@ -159,6 +162,9 @@
        },
        {
         "name": "origin"
+       },
+       {
+        "name": "parameterizedRequests"
        }
       ]
      }
@@ -174,7 +180,7 @@
      0
     ],
     "parameters": {
-     "jsCode": "\nconst origin = $json.origin;\nconst command = `timeout 180 sqlmap -u \"${origin}/\" --crawl=2 --forms --batch --level=1 --risk=1 --output-dir=/tmp/sqlmap --disable-coloring 2>&1 || true`;\nreturn [{ json: { target: $json.target, origin, command } }];\n"
+     "jsCode": "\nconst parameterizedRequests = $json.parameterizedRequests || [];\nconst target = $json.target;\nconst origin = $json.origin;\n\nconst safeUrlRe = /^https?:\\/\\/[a-zA-Z0-9.\\-]+(:\\d+)?\\/[a-zA-Z0-9\\/_\\-.%=&?+~]*$/;\n// Well-known real-time/infra protocol paths that carry no real application\n// parameters (Socket.IO's polling handshake, webpack HMR, etc.) - generic\n// across many JS frameworks, not specific to any one target.\nconst infraPathRe = /\\/(socket\\.io|sockjs-node|__webpack_hmr|hot-update)\\//i;\n// Protocol-token param names that indicate a transport/handshake query\n// string rather than application data.\nconst infraParamRe = /^(EIO|transport|sid|t|callback|jsonp)$/i;\n\nfunction looksLikeAppParam(url) {\n  const q = url.split('?')[1];\n  if (!q) return true; // POST body case, no query string to judge\n  const names = q.split('&').map(p => p.split('=')[0]);\n  return names.some(n => n && !infraParamRe.test(n));\n}\n\nconst candidates = parameterizedRequests.filter(r =>\n  r && r.method === 'GET' && r.url && r.url.startsWith(origin) && safeUrlRe.test(r.url) &&\n  !r.url.includes(\"'\") && !infraPathRe.test(r.url) && looksLikeAppParam(r.url)\n);\nconst chosen = candidates[0];\n\nlet command, targetsUsed = [], fallbackCrawl = false;\nif (chosen) {\n  command = `timeout 150 sqlmap -u '${chosen.url}' --batch --level=1 --risk=1 --output-dir=/tmp/sqlmap --disable-coloring 2>&1 || true`;\n  targetsUsed = [chosen.url];\n} else {\n  command = `timeout 150 sqlmap -u \"${origin}/\" --crawl=2 --forms --batch --level=1 --risk=1 --output-dir=/tmp/sqlmap --disable-coloring 2>&1 || true`;\n  fallbackCrawl = true;\n}\nreturn [{ json: { target, origin, command, targetsUsed, fallbackCrawl, candidateCount: candidates.length } }];\n"
     }
    },
    {
@@ -200,7 +206,7 @@
      0
     ],
     "parameters": {
-     "jsCode": "\nconst stdout = $json.stdout || '';\nconst findings = [];\nconst paramBlocks = stdout.split(/Parameter:\\s+/).slice(1);\nfor (const block of paramBlocks) {\n  const paramName = block.split(/[\\s(]/)[0];\n  const typeMatch = block.match(/Type:\\s*(.+)/);\n  const titleMatch = block.match(/Title:\\s*(.+)/);\n  findings.push({ parameter: paramName, type: typeMatch ? typeMatch[1].trim() : null, title: titleMatch ? titleMatch[1].trim() : null });\n}\nconst vulnerable = /sqlmap identified the following injection point/i.test(stdout) || findings.length > 0;\nreturn [{ json: { skipped: false, vulnerable, findings } }];\n"
+     "jsCode": "\nconst stdout = $json.stdout || '';\nconst findings = [];\nconst paramBlocks = stdout.split(/Parameter:\\s+/).slice(1);\nfor (const block of paramBlocks) {\n  const paramName = block.split(/[\\s(]/)[0];\n  const typeMatch = block.match(/Type:\\s*(.+)/);\n  const titleMatch = block.match(/Title:\\s*(.+)/);\n  findings.push({ parameter: paramName, type: typeMatch ? typeMatch[1].trim() : null, title: titleMatch ? titleMatch[1].trim() : null });\n}\nconst vulnerable = /sqlmap identified the following injection point/i.test(stdout) || findings.length > 0;\nreturn [{ json: { skipped: false, vulnerable, findings, targetsUsed: $('Build SQLMap Command').item.json.targetsUsed, fallbackCrawl: $('Build SQLMap Command').item.json.fallbackCrawl } }];\n"
     }
    }
   ],
@@ -245,10 +251,34 @@
   "autosaved": false,
   "workflowPublishHistory": [
    {
-    "createdAt": "2026-08-23T15:51:57.973Z",
-    "id": 1,
+    "createdAt": "2026-08-23T17:06:38.958Z",
+    "id": 61,
     "workflowId": "HjvzYBrZoCyVASl3",
-    "versionId": "dccd5191-cbea-40ee-b048-1fdfa6f1961d",
+    "versionId": "4c4f4ca7-eb42-4ad5-a28b-4a94969d2ea1",
+    "event": "deactivated",
+    "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
+   },
+   {
+    "createdAt": "2026-08-23T17:06:38.969Z",
+    "id": 62,
+    "workflowId": "HjvzYBrZoCyVASl3",
+    "versionId": "4c4f4ca7-eb42-4ad5-a28b-4a94969d2ea1",
+    "event": "activated",
+    "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
+   },
+   {
+    "createdAt": "2026-08-23T17:06:38.988Z",
+    "id": 63,
+    "workflowId": "HjvzYBrZoCyVASl3",
+    "versionId": "4c4f4ca7-eb42-4ad5-a28b-4a94969d2ea1",
+    "event": "deactivated",
+    "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
+   },
+   {
+    "createdAt": "2026-08-23T17:06:38.995Z",
+    "id": 64,
+    "workflowId": "HjvzYBrZoCyVASl3",
+    "versionId": "4c4f4ca7-eb42-4ad5-a28b-4a94969d2ea1",
     "event": "activated",
     "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
    }
