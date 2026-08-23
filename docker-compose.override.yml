@@ -30,3 +30,16 @@ services:
     command: zap.sh -daemon -host 0.0.0.0 -port 8090 -config api.disablekey=true
     ports:
       - 8090:8090
+
+  # Intentionally-vulnerable local test target (OWASP Juice Shop) - the only
+  # thing this platform's recon/fuzzing branches should ever be pointed at
+  # during development. On the same `demo` network as n8n so it's reachable
+  # by container hostname (juice-shop). Not on by default - own profile.
+  juice-shop:
+    image: bkimminich/juice-shop
+    hostname: juice-shop
+    container_name: juice-shop
+    networks: ['demo']
+    profiles: ['testing']
+    ports:
+      - 3000:3000
