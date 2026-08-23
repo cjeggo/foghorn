@@ -4,7 +4,7 @@
 # the recon/fuzzing CLI tools alongside it.
 FROM node:20-alpine
 # recon-ng isn't a pip package - it's a plain git-clone-and-run CLI tool.
-RUN apk add --no-cache bind-tools nmap whois python3 py3-pip git tini && \
+RUN apk add --no-cache bind-tools nmap nmap-scripts whois python3 py3-pip git tini && \
     pip install --no-cache-dir --break-system-packages sqlmap && \
     git clone --depth 1 https://github.com/lanmaster53/recon-ng.git /opt/recon-ng && \
     pip install --no-cache-dir --break-system-packages -r /opt/recon-ng/REQUIREMENTS && \

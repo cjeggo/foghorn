@@ -1,257 +1,257 @@
 {
-  "updatedAt": "2026-08-23T14:38:23.998Z",
-  "createdAt": "2026-08-23T14:38:23.998Z",
-  "id": "cUTQYfv1uHaYAoQE",
-  "name": "Sub - SQL Injection Test (sqlmap)",
-  "description": null,
-  "active": true,
-  "isArchived": false,
-  "nodes": [
-    {
-      "id": "4f9c9473-f04b-4c18-be6c-803b6afb12ef",
-      "name": "When Called",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.1,
-      "position": [
-        0,
-        0
-      ],
-      "parameters": {
-        "workflowInputs": {
-          "values": [
-            {
-              "name": "target"
-            },
-            {
-              "name": "origin"
-            }
-          ]
-        }
+ "updatedAt": "2026-08-23T15:51:57.916Z",
+ "createdAt": "2026-08-23T15:51:57.916Z",
+ "id": "HjvzYBrZoCyVASl3",
+ "name": "Sub - SQL Injection Test (sqlmap)",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "id": "4f9c9473-f04b-4c18-be6c-803b6afb12ef",
+   "name": "When Called",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "workflowInputs": {
+     "values": [
+      {
+       "name": "target"
+      },
+      {
+       "name": "origin"
       }
-    },
-    {
-      "id": "d35c9d8c-2c0e-46b6-b292-fa562ba8fa91",
-      "name": "Build SQLMap Command",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        220,
-        0
-      ],
-      "parameters": {
-        "jsCode": "\nconst origin = $json.origin;\nconst command = `timeout 180 sqlmap -u \"${origin}/\" --crawl=2 --forms --batch --level=1 --risk=1 --output-dir=/tmp/sqlmap --disable-coloring 2>&1 || true`;\nreturn [{ json: { target: $json.target, origin, command } }];\n"
-      }
-    },
-    {
-      "id": "6fc29d82-fb80-47ac-b1e4-8043fdc35773",
-      "name": "Run SQLMap",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
-      "position": [
-        440,
-        0
-      ],
-      "parameters": {
-        "command": "={{$json.command}}"
-      }
-    },
-    {
-      "id": "81cecfbf-8ed7-4538-abd8-04776f86c1fa",
-      "name": "Parse SQLMap Findings",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        660,
-        0
-      ],
-      "parameters": {
-        "jsCode": "\nconst stdout = $json.stdout || '';\nconst findings = [];\nconst paramBlocks = stdout.split(/Parameter:\\s+/).slice(1);\nfor (const block of paramBlocks) {\n  const paramName = block.split(/[\\s(]/)[0];\n  const typeMatch = block.match(/Type:\\s*(.+)/);\n  const titleMatch = block.match(/Title:\\s*(.+)/);\n  findings.push({ parameter: paramName, type: typeMatch ? typeMatch[1].trim() : null, title: titleMatch ? titleMatch[1].trim() : null });\n}\nconst vulnerable = /sqlmap identified the following injection point/i.test(stdout) || findings.length > 0;\nreturn [{ json: { skipped: false, vulnerable, findings } }];\n"
-      }
+     ]
     }
+   }
+  },
+  {
+   "id": "d35c9d8c-2c0e-46b6-b292-fa562ba8fa91",
+   "name": "Build SQLMap Command",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    220,
+    0
+   ],
+   "parameters": {
+    "jsCode": "\nconst origin = $json.origin;\nconst command = `timeout 180 sqlmap -u \"${origin}/\" --crawl=2 --forms --batch --level=1 --risk=1 --output-dir=/tmp/sqlmap --disable-coloring 2>&1 || true`;\nreturn [{ json: { target: $json.target, origin, command } }];\n"
+   }
+  },
+  {
+   "id": "6fc29d82-fb80-47ac-b1e4-8043fdc35773",
+   "name": "Run SQLMap",
+   "type": "n8n-nodes-base.executeCommand",
+   "typeVersion": 1,
+   "position": [
+    440,
+    0
+   ],
+   "parameters": {
+    "command": "={{$json.command}}"
+   }
+  },
+  {
+   "id": "81cecfbf-8ed7-4538-abd8-04776f86c1fa",
+   "name": "Parse SQLMap Findings",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    660,
+    0
+   ],
+   "parameters": {
+    "jsCode": "\nconst stdout = $json.stdout || '';\nconst findings = [];\nconst paramBlocks = stdout.split(/Parameter:\\s+/).slice(1);\nfor (const block of paramBlocks) {\n  const paramName = block.split(/[\\s(]/)[0];\n  const typeMatch = block.match(/Type:\\s*(.+)/);\n  const titleMatch = block.match(/Title:\\s*(.+)/);\n  findings.push({ parameter: paramName, type: typeMatch ? typeMatch[1].trim() : null, title: titleMatch ? titleMatch[1].trim() : null });\n}\nconst vulnerable = /sqlmap identified the following injection point/i.test(stdout) || findings.length > 0;\nreturn [{ json: { skipped: false, vulnerable, findings } }];\n"
+   }
+  }
+ ],
+ "connections": {
+  "When Called": {
+   "main": [
+    [
+     {
+      "node": "Build SQLMap Command",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build SQLMap Command": {
+   "main": [
+    [
+     {
+      "node": "Run SQLMap",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Run SQLMap": {
+   "main": [
+    [
+     {
+      "node": "Parse SQLMap Findings",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "callerPolicy": "workflowsFromSameOwner",
+  "availableInMCP": false
+ },
+ "staticData": null,
+ "meta": null,
+ "pinData": null,
+ "versionId": "dccd5191-cbea-40ee-b048-1fdfa6f1961d",
+ "activeVersionId": "dccd5191-cbea-40ee-b048-1fdfa6f1961d",
+ "versionCounter": 5,
+ "triggerCount": 0,
+ "shared": [
+  {
+   "updatedAt": "2026-08-23T15:51:57.916Z",
+   "createdAt": "2026-08-23T15:51:57.916Z",
+   "role": "workflow:owner",
+   "workflowId": "HjvzYBrZoCyVASl3",
+   "projectId": "rM80GXjDL4djKnJM",
+   "project": {
+    "updatedAt": "2026-08-23T15:47:19.791Z",
+    "createdAt": "2026-08-23T15:46:11.581Z",
+    "id": "rM80GXjDL4djKnJM",
+    "name": "cjeggo <cjeggo@proton.me>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "creatorId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-23T15:51:57.922Z",
+  "createdAt": "2026-08-23T15:51:57.922Z",
+  "versionId": "dccd5191-cbea-40ee-b048-1fdfa6f1961d",
+  "workflowId": "HjvzYBrZoCyVASl3",
+  "nodes": [
+   {
+    "id": "4f9c9473-f04b-4c18-be6c-803b6afb12ef",
+    "name": "When Called",
+    "type": "n8n-nodes-base.executeWorkflowTrigger",
+    "typeVersion": 1.1,
+    "position": [
+     0,
+     0
+    ],
+    "parameters": {
+     "workflowInputs": {
+      "values": [
+       {
+        "name": "target"
+       },
+       {
+        "name": "origin"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "id": "d35c9d8c-2c0e-46b6-b292-fa562ba8fa91",
+    "name": "Build SQLMap Command",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     220,
+     0
+    ],
+    "parameters": {
+     "jsCode": "\nconst origin = $json.origin;\nconst command = `timeout 180 sqlmap -u \"${origin}/\" --crawl=2 --forms --batch --level=1 --risk=1 --output-dir=/tmp/sqlmap --disable-coloring 2>&1 || true`;\nreturn [{ json: { target: $json.target, origin, command } }];\n"
+    }
+   },
+   {
+    "id": "6fc29d82-fb80-47ac-b1e4-8043fdc35773",
+    "name": "Run SQLMap",
+    "type": "n8n-nodes-base.executeCommand",
+    "typeVersion": 1,
+    "position": [
+     440,
+     0
+    ],
+    "parameters": {
+     "command": "={{$json.command}}"
+    }
+   },
+   {
+    "id": "81cecfbf-8ed7-4538-abd8-04776f86c1fa",
+    "name": "Parse SQLMap Findings",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     660,
+     0
+    ],
+    "parameters": {
+     "jsCode": "\nconst stdout = $json.stdout || '';\nconst findings = [];\nconst paramBlocks = stdout.split(/Parameter:\\s+/).slice(1);\nfor (const block of paramBlocks) {\n  const paramName = block.split(/[\\s(]/)[0];\n  const typeMatch = block.match(/Type:\\s*(.+)/);\n  const titleMatch = block.match(/Title:\\s*(.+)/);\n  findings.push({ parameter: paramName, type: typeMatch ? typeMatch[1].trim() : null, title: titleMatch ? titleMatch[1].trim() : null });\n}\nconst vulnerable = /sqlmap identified the following injection point/i.test(stdout) || findings.length > 0;\nreturn [{ json: { skipped: false, vulnerable, findings } }];\n"
+    }
+   }
   ],
   "connections": {
-    "When Called": {
-      "main": [
-        [
-          {
-            "node": "Build SQLMap Command",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build SQLMap Command": {
-      "main": [
-        [
-          {
-            "node": "Run SQLMap",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Run SQLMap": {
-      "main": [
-        [
-          {
-            "node": "Parse SQLMap Findings",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
-  "settings": {
-    "executionOrder": "v1",
-    "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
-  },
-  "staticData": null,
-  "meta": null,
-  "pinData": null,
-  "versionId": "9fc5aa8b-d55e-4872-b40d-59b4f7326892",
-  "activeVersionId": "9fc5aa8b-d55e-4872-b40d-59b4f7326892",
-  "versionCounter": 1,
-  "triggerCount": 0,
-  "shared": [
-    {
-      "updatedAt": "2026-08-23T14:38:23.998Z",
-      "createdAt": "2026-08-23T14:38:23.998Z",
-      "role": "workflow:owner",
-      "workflowId": "cUTQYfv1uHaYAoQE",
-      "projectId": "Jg4uS5KGYOhglknu",
-      "project": {
-        "updatedAt": "2026-08-22T10:40:41.556Z",
-        "createdAt": "2026-08-22T10:39:49.139Z",
-        "id": "Jg4uS5KGYOhglknu",
-        "name": "cjeggo <cjeggo@proton.me>",
-        "type": "personal",
-        "icon": null,
-        "description": null,
-        "creatorId": "5681b20b-33b2-405a-92c1-7784c68344c0"
+   "When Called": {
+    "main": [
+     [
+      {
+       "node": "Build SQLMap Command",
+       "type": "main",
+       "index": 0
       }
-    }
-  ],
-  "tags": [],
-  "activeVersion": {
-    "updatedAt": "2026-08-23T14:38:24.034Z",
-    "createdAt": "2026-08-23T14:38:24.034Z",
-    "versionId": "9fc5aa8b-d55e-4872-b40d-59b4f7326892",
-    "workflowId": "cUTQYfv1uHaYAoQE",
-    "nodes": [
-      {
-        "id": "4f9c9473-f04b-4c18-be6c-803b6afb12ef",
-        "name": "When Called",
-        "type": "n8n-nodes-base.executeWorkflowTrigger",
-        "typeVersion": 1.1,
-        "position": [
-          0,
-          0
-        ],
-        "parameters": {
-          "workflowInputs": {
-            "values": [
-              {
-                "name": "target"
-              },
-              {
-                "name": "origin"
-              }
-            ]
-          }
-        }
-      },
-      {
-        "id": "d35c9d8c-2c0e-46b6-b292-fa562ba8fa91",
-        "name": "Build SQLMap Command",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          220,
-          0
-        ],
-        "parameters": {
-          "jsCode": "\nconst origin = $json.origin;\nconst command = `timeout 180 sqlmap -u \"${origin}/\" --crawl=2 --forms --batch --level=1 --risk=1 --output-dir=/tmp/sqlmap --disable-coloring 2>&1 || true`;\nreturn [{ json: { target: $json.target, origin, command } }];\n"
-        }
-      },
-      {
-        "id": "6fc29d82-fb80-47ac-b1e4-8043fdc35773",
-        "name": "Run SQLMap",
-        "type": "n8n-nodes-base.executeCommand",
-        "typeVersion": 1,
-        "position": [
-          440,
-          0
-        ],
-        "parameters": {
-          "command": "={{$json.command}}"
-        }
-      },
-      {
-        "id": "81cecfbf-8ed7-4538-abd8-04776f86c1fa",
-        "name": "Parse SQLMap Findings",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          660,
-          0
-        ],
-        "parameters": {
-          "jsCode": "\nconst stdout = $json.stdout || '';\nconst findings = [];\nconst paramBlocks = stdout.split(/Parameter:\\s+/).slice(1);\nfor (const block of paramBlocks) {\n  const paramName = block.split(/[\\s(]/)[0];\n  const typeMatch = block.match(/Type:\\s*(.+)/);\n  const titleMatch = block.match(/Title:\\s*(.+)/);\n  findings.push({ parameter: paramName, type: typeMatch ? typeMatch[1].trim() : null, title: titleMatch ? titleMatch[1].trim() : null });\n}\nconst vulnerable = /sqlmap identified the following injection point/i.test(stdout) || findings.length > 0;\nreturn [{ json: { skipped: false, vulnerable, findings } }];\n"
-        }
-      }
-    ],
-    "connections": {
-      "When Called": {
-        "main": [
-          [
-            {
-              "node": "Build SQLMap Command",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Build SQLMap Command": {
-        "main": [
-          [
-            {
-              "node": "Run SQLMap",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Run SQLMap": {
-        "main": [
-          [
-            {
-              "node": "Parse SQLMap Findings",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      }
-    },
-    "authors": "cjeggo",
-    "name": null,
-    "description": null,
-    "autosaved": false,
-    "workflowPublishHistory": [
-      {
-        "createdAt": "2026-08-23T14:39:21.127Z",
-        "id": 77,
-        "workflowId": "cUTQYfv1uHaYAoQE",
-        "versionId": "9fc5aa8b-d55e-4872-b40d-59b4f7326892",
-        "event": "activated",
-        "userId": "5681b20b-33b2-405a-92c1-7784c68344c0"
-      }
+     ]
     ]
-  }
+   },
+   "Build SQLMap Command": {
+    "main": [
+     [
+      {
+       "node": "Run SQLMap",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Run SQLMap": {
+    "main": [
+     [
+      {
+       "node": "Parse SQLMap Findings",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "authors": "cjeggo",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-23T15:51:57.973Z",
+    "id": 1,
+    "workflowId": "HjvzYBrZoCyVASl3",
+    "versionId": "dccd5191-cbea-40ee-b048-1fdfa6f1961d",
+    "event": "activated",
+    "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
+   }
+  ]
+ }
 }

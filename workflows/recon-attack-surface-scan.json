@@ -1,2675 +1,994 @@
 {
-  "updatedAt": "2026-08-23T15:03:35.472Z",
-  "createdAt": "2026-08-23T11:42:19.813Z",
-  "id": "uPsBOR11c3kxhNWV",
-  "name": "Recon - Attack Surface Scan (MVP)",
-  "description": null,
-  "active": true,
-  "isArchived": false,
-  "nodes": [
-    {
-      "parameters": {
-        "formTitle": "Recon / Attack-Surface Scan",
-        "formDescription": "Authorized recon scan of a domain or IP.",
-        "formFields": {
-          "values": [
-            {
-              "fieldLabel": "target",
-              "placeholder": "example.com or 1.2.3.4",
-              "requiredField": true
-            },
-            {
-              "fieldLabel": "authorized",
-              "fieldType": "checkbox",
-              "fieldOptions": {
-                "values": [
-                  {}
-                ]
-              },
-              "requiredField": true
-            },
-            {
-              "fieldLabel": "scanIntensity",
-              "fieldType": "dropdown",
-              "fieldOptions": {
-                "values": [
-                  {
-                    "option": "dns-only"
-                  },
-                  {
-                    "option": "dns+ports"
-                  },
-                  {
-                    "option": "dns+ports+web"
-                  }
-                ]
-              },
-              "requiredField": true
-            },
-            {
-              "fieldLabel": "sqlInjectionTest",
-              "fieldType": "checkbox",
-              "fieldOptions": {
-                "values": [
-                  {}
-                ]
-              }
-            },
-            {
-              "fieldLabel": "webVulnScan",
-              "fieldType": "checkbox",
-              "fieldOptions": {
-                "values": [
-                  {}
-                ]
-              }
-            }
-          ]
-        },
-        "options": {}
+ "updatedAt": "2026-08-23T16:24:15.209Z",
+ "createdAt": "2026-08-23T15:53:40.878Z",
+ "id": "RMJAXbF2cVeHL4Rb",
+ "name": "Recon - Attack Surface Scan (MVP)",
+ "description": null,
+ "active": true,
+ "isArchived": false,
+ "nodes": [
+  {
+   "parameters": {
+    "formTitle": "Recon / Attack-Surface Scan",
+    "formDescription": "Authorized recon scan of a domain, IP, or /24-or-smaller CIDR range.",
+    "formFields": {
+     "values": [
+      {
+       "fieldLabel": "target",
+       "placeholder": "example.com, 1.2.3.4, or 10.0.0.0/24",
+       "requiredField": true
       },
-      "id": "e8c92345-d7ee-411d-84c9-8e27e51dc8d1",
-      "name": "Recon Target",
-      "type": "n8n-nodes-base.formTrigger",
-      "typeVersion": 2.2,
-      "position": [
-        0,
-        432
-      ],
-      "webhookId": "0715503a-1d26-4141-9543-08e6e245f1ae"
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst raw = (($json.target) || '').trim().toLowerCase();\nconst authorized = $json.authorized === true || $json.authorized === 'true';\nconst hostnameRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;\nconst ipv4Re = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\nconst ipv6Re = /^[0-9a-f:]+$/i;\nconst isIp = ipv4Re.test(raw) || (raw.includes(':') && ipv6Re.test(raw));\nconst valid = raw.length > 0 && raw.length < 254 && (isIp || hostnameRe.test(raw));\nconst blocked = !authorized ? 'authorization checkbox not confirmed' : (!valid ? 'target failed validation' : null);\nreturn [{ json: { target: raw, isIp, scanIntensity: $json.scanIntensity || 'dns-only', blocked } }];\n"
+      {
+       "fieldLabel": "authorized",
+       "fieldType": "checkbox",
+       "fieldOptions": {
+        "values": [
+         {}
+        ]
+       },
+       "requiredField": true
       },
-      "id": "d4bef2d9-0c60-4703-a86c-16de515c129b",
-      "name": "Validate & Normalize",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        224,
-        432
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "380105df-5805-4814-af0c-e8e86d0fc53b",
-              "leftValue": "={{ $json.blocked }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "empty",
-                "singleValue": true
-              }
-            }
-          ]
-        },
-        "options": {}
+      {
+       "fieldLabel": "scanIntensity",
+       "fieldType": "dropdown",
+       "fieldOptions": {
+        "values": [
+         {
+          "option": "dns-only"
+         },
+         {
+          "option": "dns+ports"
+         },
+         {
+          "option": "dns+ports+web"
+         }
+        ]
+       },
+       "requiredField": true
       },
-      "id": "d442f825-cb10-4cde-ae1c-51a34b6dbe06",
-      "name": "Proceed?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        448,
-        432
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "return [{ json: { status: 'blocked', reason: $json.blocked } }];"
+      {
+       "fieldLabel": "sqlInjectionTest",
+       "fieldType": "checkbox",
+       "fieldOptions": {
+        "values": [
+         {}
+        ]
+       }
       },
-      "id": "db02a343-36ac-4f9a-8972-b0a0f5ea14db",
-      "name": "Blocked",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        672,
-        528
-      ]
-    },
-    {
-      "parameters": {
-        "command": "=echo \"A:\"; dig +short {{$json.target}} A; echo \"AAAA:\"; dig +short {{$json.target}} AAAA; echo \"MX:\"; dig +short {{$json.target}} MX; echo \"NS:\"; dig +short {{$json.target}} NS; echo \"TXT:\"; dig +short {{$json.target}} TXT; echo \"SOA:\"; dig +short {{$json.target}} SOA"
-      },
-      "id": "667148a3-18b7-43ae-99a9-5e6790b87154",
-      "name": "DNS Records",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
-      "position": [
-        672,
-        336
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst target = $('Validate & Normalize').item.json.target;\nconst lines = ($json.stdout || '').split('\\n');\nconst records = { A: [], AAAA: [], MX: [], NS: [], TXT: [], SOA: [] };\nlet section = null;\nfor (const line of lines) {\n  const t = line.trim();\n  if (!t) continue;\n  const marker = t.match(/^(A|AAAA|MX|NS|TXT|SOA):$/);\n  if (marker) { section = marker[1]; continue; }\n  if (section && records[section]) records[section].push(t);\n}\nreturn [{ json: { target, records } }];\n"
-      },
-      "id": "67e3a9c4-8816-47bd-9756-c270561bb3c2",
-      "name": "Parse DNS",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        896,
-        336
-      ]
-    },
-    {
-      "parameters": {
-        "url": "=https://crt.sh/?q=%25.{{ $('Validate & Normalize').item.json.target }}&output=json",
-        "options": {
-          "timeout": 15000
-        }
-      },
-      "id": "1aa7014c-1da1-45a1-92d3-ea8de16b0173",
-      "name": "crt.sh Subdomains",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1120,
-        240
-      ],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst dnsInfo = $('Parse DNS').item.json;\nconst norm = $('Validate & Normalize').item.json;\nlet subdomains = [];\ntry {\n  const body = $json.body !== undefined ? $json.body : $json;\n  const arr = Array.isArray(body) ? body : [];\n  const set = new Set();\n  for (const entry of arr) {\n    if (entry && entry.name_value) {\n      entry.name_value.split('\\n').forEach(n => set.add(n.trim().toLowerCase()));\n    }\n  }\n  subdomains = Array.from(set);\n} catch (e) { subdomains = []; }\n\nlet whoisText = '';\ntry { whoisText = $('WHOIS Lookup').item.json.stdout || ''; } catch (e) { whoisText = ''; }\nconst whoisFields = {};\nfor (const line of whoisText.split('\\n')) {\n  const m = line.match(/^\\s*(Registrar|Registrant Organization|Creation Date|Registry Expiry Date|Name Server|Updated Date)\\s*:\\s*(.+)$/i);\n  if (m) {\n    const key = m[1].trim();\n    whoisFields[key] = whoisFields[key] ? [].concat(whoisFields[key], m[2].trim()) : m[2].trim();\n  }\n}\n\nconst resolvedIp = norm.isIp ? norm.target : ((dnsInfo.records.A && dnsInfo.records.A[0]) || null);\n\nconst attckCoverage = [\n  { technique: 'T1590.002', name: 'Gather Victim Network Information: DNS', status: 'executed' },\n  { technique: 'T1596.003', name: 'Search Open Technical Databases: Digital Certificates', status: subdomains.length || !norm.isIp ? 'executed' : 'skipped (IP target, no hostname to query)' },\n  { technique: 'T1596.002', name: 'Search Open Technical Databases: WHOIS', status: whoisText ? 'executed' : 'no data returned' },\n];\n\nreturn [{ json: {\n  target: norm.target, isIp: norm.isIp, scanIntensity: norm.scanIntensity,\n  dns: dnsInfo.records, subdomains, whois: whoisFields, resolvedIp, attckCoverage\n} }];\n"
-      },
-      "id": "a1297f53-00fb-4f14-9e2c-8b7c45b28fee",
-      "name": "Merge DNS + Subdomains",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1344,
-        240
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "b935abbb-4169-4113-bbe0-b9a5f4eb4553",
-              "leftValue": "={{ $json.scanIntensity }}",
-              "rightValue": "dns-only",
-              "operator": {
-                "type": "string",
-                "operation": "notEquals"
-              }
-            },
-            {
-              "id": "96fb1f40-2bae-4a90-9552-bd6ad4243b62",
-              "leftValue": "={{ $json.resolvedIp }}",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty",
-                "singleValue": true
-              }
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "4352c6b3-7c35-4d77-93e5-f0a372e00684",
-      "name": "Port Scan?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        1568,
-        240
-      ]
-    },
-    {
-      "parameters": {
-        "command": "=timeout 120 nmap -sT -Pn -T3 --max-parallelism 5 --top-ports 100 -oX - {{$json.resolvedIp}}"
-      },
-      "id": "2c576ccd-9ff8-4a2c-a7b6-fb8a4452b396",
-      "name": "Nmap Top Ports",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
-      "position": [
-        1792,
-        144
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst ctx = $('Merge DNS + Subdomains').item.json;\nconst xml = $json.stdout || '';\nconst ports = [];\nconst re = /<port protocol=\"(\\w+)\" portid=\"(\\d+)\">[\\s\\S]*?<state state=\"(\\w+)\"[^>]*\\/>(?:[\\s\\S]*?<service name=\"([^\"]*)\"[^>]*\\/>)?[\\s\\S]*?<\\/port>/g;\nlet mm;\nwhile ((mm = re.exec(xml)) !== null) {\n  if (mm[3] === 'open') ports.push({ port: Number(mm[2]), protocol: mm[1], service: mm[4] || 'unknown' });\n}\nconst coverage = [...ctx.attckCoverage, { technique: 'T1595.001/.002', name: 'Active Scanning: Scanning IP Blocks / Vulnerability Scanning', status: 'executed' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, portScan: { skipped: false, openPorts: ports } } }];\n"
-      },
-      "id": "22f5ce68-4479-4aa7-b90e-3f1299c0e8a0",
-      "name": "Parse Nmap",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2016,
-        144
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst ctx = $('Merge DNS + Subdomains').item.json;\nconst coverage = [...ctx.attckCoverage, { technique: 'T1595.001/.002', name: 'Active Scanning: Scanning IP Blocks / Vulnerability Scanning', status: 'skipped (scanIntensity=dns-only or no resolvable IP)' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, portScan: { skipped: true, reason: 'scanIntensity=dns-only or no resolvable IP' } } }];\n"
-      },
-      "id": "cb07aa3e-d5ff-4cb0-b2f9-56f774f0f729",
-      "name": "Skip Port Scan",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2016,
-        336
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "1412618a-9890-4fc5-972d-29a8a079e2c5",
-              "leftValue": "={{ $json.scanIntensity }}",
-              "rightValue": "dns+ports+web",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "f52d9f95-cca8-4e99-bacc-d9b8a6d770bc",
-      "name": "Web Scan?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        2240,
-        240
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst ctx = $json;\nconst target = ctx.target;\nconst maxPages = 10;\nconst maxDepth = 2;\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nconst politeDelay = () => sleep(400 + Math.floor(Math.random() * 500));\nconst visited = new Set();\nconst fetchUrl = async (url) => {\n  try {\n    await politeDelay();\n    return await this.helpers.httpRequest({ method: 'GET', url, timeout: 10000, returnFullResponse: true, ignoreHttpStatusErrors: true });\n  } catch (e) { return null; }\n};\n\nconst getOrigin = (u) => u.endsWith('/') ? u.slice(0, -1) : u;\nconst resolveHref = (href, baseUrl, origin) => {\n  if (/^https?:\\/\\//i.test(href)) return href;\n  if (href.startsWith('//')) return (origin.startsWith('https') ? 'https:' : 'http:') + href;\n  if (href.startsWith('/')) return origin + href;\n  const baseDir = baseUrl.slice(0, baseUrl.lastIndexOf('/') + 1);\n  return baseDir + href;\n};\n\nconst openPorts = (ctx.portScan && !ctx.portScan.skipped) ? ctx.portScan.openPorts.map(p => p.port) : [];\nconst candidateUrls = [];\nif (openPorts.includes(443)) candidateUrls.push(`https://${target}/`);\nif (openPorts.includes(80)) candidateUrls.push(`http://${target}/`);\nfor (const p of openPorts) {\n  if (p !== 80 && p !== 443) candidateUrls.push(`http://${target}:${p}/`);\n}\n\nlet startUrl = null, homepage = null;\nif (candidateUrls.length === 0) {\n  const coverage = [...ctx.attckCoverage, { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'no open ports discovered to attempt a web scan against' }];\n  return [{ json: { ...ctx, attckCoverage: coverage, webScan: { skipped: false, reachable: false, reason: 'no open ports from port scan' } } }];\n}\nfor (const url of candidateUrls) {\n  homepage = await fetchUrl(url);\n  if (homepage) { startUrl = url; break; }\n}\nif (!homepage) {\n  const coverage = [...ctx.attckCoverage, { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'attempted, target unreachable' }];\n  return [{ json: { ...ctx, attckCoverage: coverage, webScan: { skipped: false, reachable: false, portsTried: candidateUrls } } }];\n}\nconst origin = getOrigin(startUrl);\n\nconst SECURITY_HEADERS = [\n  'strict-transport-security', 'content-security-policy', 'x-frame-options',\n  'x-content-type-options', 'referrer-policy', 'permissions-policy',\n];\nconst auditHeaders = (headers) => {\n  const present = {}, missing = [];\n  for (const h of SECURITY_HEADERS) {\n    if (headers[h]) present[h] = headers[h];\n    else missing.push(h);\n  }\n  return { present, missing };\n};\n\nconst auditCookies = (headers) => {\n  let raw = headers['set-cookie'];\n  if (!raw) return [];\n  if (!Array.isArray(raw)) raw = [raw];\n  return raw.map((c) => {\n    const name = c.split('=')[0];\n    return {\n      name,\n      secure: /;\\s*Secure/i.test(c),\n      httpOnly: /;\\s*HttpOnly/i.test(c),\n      sameSite: (c.match(/;\\s*SameSite=(\\w+)/i) || [])[1] || 'not set',\n    };\n  });\n};\n\nconst extractForms = (body, pageUrl) => {\n  const forms = [];\n  const formRe = /<form\\b([^>]*)>([\\s\\S]*?)<\\/form>/gi;\n  let fm;\n  while ((fm = formRe.exec(body)) !== null) {\n    const attrs = fm[1];\n    const action = (attrs.match(/action=[\"']([^\"']*)[\"']/i) || [])[1] || pageUrl;\n    const method = ((attrs.match(/method=[\"']([^\"']*)[\"']/i) || [])[1] || 'GET').toUpperCase();\n    const inputs = [];\n    const inputRe = /<input\\b[^>]*name=[\"']([^\"']+)[\"'][^>]*>/gi;\n    let im;\n    while ((im = inputRe.exec(fm[2])) !== null) inputs.push(im[1]);\n    if (inputs.length) forms.push({ page: pageUrl, action, method, fields: inputs });\n  }\n  return forms;\n};\n\nconst headers = homepage.headers || {};\nconst homepageBody = typeof homepage.body === 'string' ? homepage.body : '';\nconst securityHeaders = auditHeaders(headers);\nconst cookies = auditCookies(headers);\nlet forms = extractForms(homepageBody, startUrl);\n\n// --- JS/CSS asset discovery + bundle analysis ---\n// Modern SPAs (Angular/React/Vue) don't expose their real attack surface via\n// server-rendered HTML - the actual routes and REST/API paths only exist as\n// strings inside the compiled JS bundle. A static path wordlist alone will\n// never find these. Fetch the referenced JS assets and pull real path\n// fragments out of them instead of guessing.\nconst assetRe = /(?:src|href)=[\"']([^\"']+\\.(?:js|css))[\"']/gi;\nconst assetPaths = new Set();\nlet am;\nwhile ((am = assetRe.exec(homepageBody)) !== null) assetPaths.add(am[1]);\nconst jsAssetUrls = Array.from(assetPaths)\n  .filter((a) => a.endsWith('.js'))\n  .map((a) => resolveHref(a, startUrl, origin))\n  .filter((u) => u.startsWith(origin));\n\nlet bundleEvidence = [], discoveredApiPaths = [];\nfor (const assetUrl of jsAssetUrls.slice(0, 6)) {\n  const res = await fetchUrl(assetUrl);\n  if (!res || typeof res.body !== 'string') continue;\n  const body = res.body;\n  const pathRe = /\\/(?:rest|api)\\/[a-zA-Z0-9_\\-\\/]+/g;\n  const hits = new Set();\n  let pm;\n  while ((pm = pathRe.exec(body)) !== null) hits.add(pm[0].replace(/\\/$/, ''));\n  for (const h of hits) discoveredApiPaths.push(h);\n  const generator = body.match(/<meta\\s+name=[\"']generator[\"']\\s+content=[\"']([^\"']+)[\"']/i);\n  if (generator) bundleEvidence.push(`meta generator tag: \"${generator[1]}\"`);\n}\ndiscoveredApiPaths = Array.from(new Set(discoveredApiPaths)).slice(0, 40);\n\nconst comments = homepageBody.match(/<!--[\\s\\S]{0,200}?-->/g) || [];\nfor (const c of comments.slice(0, 5)) {\n  const text = c.replace(/<!--|-->/g, '').trim();\n  if (text) bundleEvidence.push(`HTML comment: \"${text.slice(0, 150)}\"`);\n}\nfor (const a of Array.from(assetPaths).slice(0, 30)) bundleEvidence.push(`asset reference: ${a}`);\nconst fingerprint = {\n  assetCount: assetPaths.size,\n  evidenceStrings: bundleEvidence,\n  jsAssetUrls,\n};\n\n// --- Baselined content discovery: static wordlist + real endpoints pulled\n// from the JS bundle, so discovery isn't limited to guessed common paths. ---\nconst COMMON_PATHS = [\n  '/robots.txt', '/sitemap.xml', '/.well-known/security.txt', '/.git/HEAD',\n  '/.env', '/admin', '/api', '/graphql', '/swagger.json', '/swagger-ui.html',\n  '/package.json', '/server-status', '/.htaccess', '/actuator/health', '/login',\n];\nconst probePaths = Array.from(new Set([...COMMON_PATHS, ...discoveredApiPaths]));\n\nconst simpleHash = (s) => { let h = 0; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) | 0; } return h; };\nconst baselinePath = `/__recon_baseline_${Date.now()}_${Math.floor(Math.random() * 1e6)}__`;\nconst baselineRes = await fetchUrl(`${origin}${baselinePath}`);\nconst baseline = baselineRes ? {\n  status: baselineRes.statusCode,\n  length: (typeof baselineRes.body === 'string' ? baselineRes.body.length : 0),\n  hash: simpleHash(typeof baselineRes.body === 'string' ? baselineRes.body : ''),\n} : null;\n\nconst pathResults = [];\nfor (const p of probePaths) {\n  const res = await fetchUrl(`${origin}${p}`);\n  if (!res) continue;\n  const body = typeof res.body === 'string' ? res.body : '';\n  const signature = { status: res.statusCode, length: body.length, hash: simpleHash(body) };\n  const matchesBaseline = baseline && signature.status === baseline.status &&\n    signature.length === baseline.length && signature.hash === baseline.hash;\n  pathResults.push({\n    path: p,\n    status: res.statusCode,\n    distinctFromBaseline: !matchesBaseline,\n    fromJsBundle: discoveredApiPaths.includes(p),\n  });\n}\n\nconst queue = [{ url: startUrl, depth: 1 }];\nconst pages = [];\nwhile (queue.length && pages.length < maxPages) {\n  const { url, depth } = queue.shift();\n  if (visited.has(url)) continue;\n  visited.add(url);\n  const res = await fetchUrl(url);\n  if (!res) continue;\n  const body = typeof res.body === 'string' ? res.body : '';\n  const titleMatch = body.match(/<title[^>]*>([^<]*)<\\/title>/i);\n  pages.push({ url, status: res.statusCode, title: titleMatch ? titleMatch[1].trim() : null });\n  if (url !== startUrl) forms = forms.concat(extractForms(body, url));\n  if (depth < maxDepth) {\n    const hrefRe = /href=[\"']([^\"'#]+)[\"']/gi;\n    let hm;\n    while ((hm = hrefRe.exec(body)) !== null) {\n      try {\n        const abs = resolveHref(hm[1], url, origin);\n        if (abs.startsWith(origin) && !visited.has(abs) && (queue.length + pages.length) < maxPages) {\n          queue.push({ url: abs, depth: depth + 1 });\n        }\n      } catch (e) {}\n    }\n  }\n}\nlet robotsStatus = null, sitemapStatus = null;\nconst robotsRes = pathResults.find((r) => r.path === '/robots.txt');\nif (robotsRes) robotsStatus = robotsRes.status;\nconst sitemapRes = pathResults.find((r) => r.path === '/sitemap.xml');\nif (sitemapRes) sitemapStatus = sitemapRes.status;\n\nconst coverage = [...ctx.attckCoverage, { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'executed' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, webScan: {\n  skipped: false, reachable: true, origin,\n  headers,\n  securityHeaders,\n  cookies,\n  fingerprint,\n  discoveredApiPaths,\n  forms,\n  contentDiscovery: pathResults,\n  robotsTxtStatus: robotsStatus, sitemapXmlStatus: sitemapStatus,\n  pagesCrawled: pages.length, pages\n} } }];\n"
-      },
-      "id": "bbfa26c1-19fb-4c51-93a5-de8ca0d5f40c",
-      "name": "Fetch & Crawl",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2464,
-        144
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst coverage = [...($json.attckCoverage || []), { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'skipped (scanIntensity != dns+ports+web)' }];\nreturn [{ json: { ...$json, attckCoverage: coverage, webScan: { skipped: true, reason: 'scanIntensity != dns+ports+web' } } }];\n"
-      },
-      "id": "0579d9e9-1bda-40e2-99e4-9dc70c025b5e",
-      "name": "Skip Web Scan",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2464,
-        336
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst data = $json;\nconst now = new Date();\nconst pad = n => String(n).padStart(2, '0');\nconst ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;\n\n// Trim the payload that goes to the LLM - drop redundant/verbose fields so\n// the prompt stays small enough for the model to reliably follow the\n// requested report structure instead of drowning in raw data.\nlet promptWebScan = null;\nif (data.webScan) {\n  const ws = data.webScan;\n  promptWebScan = {\n    reachable: ws.reachable,\n    reason: ws.reason,\n    origin: ws.origin,\n    securityHeaders: ws.securityHeaders,\n    cookies: ws.cookies,\n    fingerprint: ws.fingerprint ? {\n      assetCount: ws.fingerprint.assetCount,\n      evidenceStrings: ws.fingerprint.evidenceStrings,\n    } : undefined,\n    forms: ws.forms,\n    contentDiscovery: (ws.contentDiscovery || []).filter(r => r.distinctFromBaseline),\n    contentDiscoveryCheckedCount: (ws.contentDiscovery || []).length,\n    pagesCrawledCount: ws.pagesCrawled,\n    robotsTxtStatus: ws.robotsTxtStatus,\n    sitemapXmlStatus: ws.sitemapXmlStatus,\n  };\n}\n\nconst promptData = {\n  target: data.target, isIp: data.isIp, scanIntensity: data.scanIntensity,\n  dns: data.dns, subdomains: data.subdomains, whois: data.whois, resolvedIp: data.resolvedIp,\n  attckCoverage: data.attckCoverage, portScan: data.portScan,\n  webScan: promptWebScan,\n  componentFindings: data.componentFindings,\n  sqlmapScan: data.sqlmapScan,\n  zapScan: data.zapScan,\n};\n\nreturn [{ json: { ...data, reportTimestamp: ts, reportFilename: `${data.target}-${ts}.md`, promptData } }];\n"
-      },
-      "id": "aade419a-b04c-4f65-bc0c-8f4e77f917b7",
-      "name": "Build Report Data",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        4704,
-        240
-      ]
-    },
-    {
-      "parameters": {
-        "model": "qwen3:8b",
-        "options": {}
-      },
-      "id": "08afb225-c9aa-45ce-a70f-f4128f287f8c",
-      "name": "Ollama Chat Model",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-      "typeVersion": 1,
-      "position": [
-        5224,
-        560
-      ],
-      "credentials": {
-        "ollamaApi": {
-          "id": "vn8oUyNpCDytyAai",
-          "name": "Recon Platform Ollama (IP)"
-        }
+      {
+       "fieldLabel": "webVulnScan",
+       "fieldType": "checkbox",
+       "fieldOptions": {
+        "values": [
+         {}
+        ]
+       }
       }
+     ]
     },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "=FORMAT: your response must begin IMMEDIATELY with \"## 6. If I Were Attacking This\" - no preamble, no restating the task, no thinking out loud. Sections 1-5 and 8 of this report are already written (deterministically, from the raw scan data) and shown to you below for context only - do NOT regenerate them, do NOT repeat their content, only write sections 6 and 7.\n\nYou are writing the attack-planning portion of an authorized recon report on {{$json.target}}. No phishing/social engineering (T1566, T1598, T1589, T1591) - infrastructure/technical only.\n\nAlready-established findings (sections 1-5, 8 of the final report):\n{{$json.sections1to5}}\n\nWrite exactly these two sections:\n\n## 6. If I Were Attacking This\nFor EVERY confirmed finding above (missing headers, content-discovery hits, vulnerable components, sqlmap results, ZAP alerts, forms) write one first-person line naming the exact tool/command you'd run, e.g. \"`/rest/user/login` was found in the JS bundle, not linked anywhere - I'd `sqlmap -u <url> --data 'email=x&password=y' --batch --level=1 --risk=1` against it directly\" or \"ZAP flagged CORS misconfiguration on /ftp/ with Access-Control-Allow-Origin: * - I'd check what's actually in that directory next since it's browsable cross-origin.\" Never invent a finding that isn't listed above. If a category above says nothing was found, write one line saying there's nothing to attack there yet, don't skip it silently.\n\n## 7. ATT&CK-Aligned Next-Phase Plan\nTie section 6's actions to the three ATT&CK tactics that follow reconnaissance - every target named must come from section 6, not a new one:\n   a. Resource Development (TA0042) - what to stage (wordlist, PoC page, cloned repo, etc).\n   b. Initial Access (TA0001), non-human-targeting only - the actual entry-point attempt.\n   c. Execution (TA0002) - what follows once that entry point succeeds.\n",
-        "batching": {}
-      },
-      "id": "633190ce-4ec3-462e-a37b-ad3d016bf3e3",
-      "name": "Analyze & Plan Next Phase",
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.7,
-      "position": [
-        5152,
-        336
-      ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst ctx = $('Build Deterministic Report Sections').item.json;\nlet attackPlan = $json.text || $json.output || '';\nattackPlan = attackPlan.replace(/^[\\s\\S]*?<\\/think>\\s*/i, '');\nconst headingMatch = attackPlan.match(/^#{1,3}\\s+\\S.*$/m);\nif (headingMatch) {\n  attackPlan = attackPlan.slice(attackPlan.indexOf(headingMatch[0]));\n}\nattackPlan = attackPlan.trim();\nif (!attackPlan) {\n  attackPlan = '## 6. If I Were Attacking This\\n\\n(Ollama did not return usable output for this section.)\\n\\n## 7. ATT&CK-Aligned Next-Phase Plan\\n\\n(Not generated.)';\n}\n\nconst header = `# Recon Report: ${ctx.target}\\n\\n- Timestamp: ${ctx.reportTimestamp}\\n- Scan intensity: ${ctx.scanIntensity}\\n\\n---\\n\\n# ${ctx.target} Reconnaissance Report\\n\\n`;\nconst reportContent = header + ctx.sections1to5 + '\\n' + attackPlan + '\\n\\n' + ctx.section8 + '\\n';\nreturn [{ json: { ...ctx, reportContent } }];\n"
-      },
-      "id": "c75d7fc2-366a-4512-92ae-039262e85b57",
-      "name": "Build Report File",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        5504,
-        336
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "toText",
-        "sourceProperty": "reportContent",
-        "options": {
-          "fileName": "={{$json.reportFilename}}"
-        }
-      },
-      "id": "09d85f59-d28b-4bac-860e-68a4daaf76bc",
-      "name": "Convert Report to File",
-      "type": "n8n-nodes-base.convertToFile",
-      "typeVersion": 1.1,
-      "position": [
-        5728,
-        336
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "write",
-        "fileName": "=/data/shared/recon/{{ $('Build Report Data').item.json.reportFilename }}",
-        "options": {}
-      },
-      "id": "d9db70c4-4c33-4890-9ccc-0173806ff1ae",
-      "name": "Persist Report",
-      "type": "n8n-nodes-base.readWriteFile",
-      "typeVersion": 1,
-      "position": [
-        5952,
-        336
-      ]
-    },
-    {
-      "parameters": {
-        "command": "=timeout 20 whois {{ $('Validate & Normalize').item.json.target }} || true"
-      },
-      "id": "77ee6599-c40f-4e42-9530-393b4be527c8",
-      "name": "WHOIS Lookup",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
-      "position": [
-        1120,
-        432
-      ]
-    },
-    {
-      "parameters": {},
-      "id": "2c4f8c8b-2cb6-4aa6-a078-2a1f298d6c10",
-      "name": "Settle Before LLM Call",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        4928,
-        432
-      ],
-      "webhookId": "4cdb2cef-5156-4b0d-a4f0-f040c7347c6b"
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst ctx = $json;\nconst jsUrls = (ctx.webScan && ctx.webScan.fingerprint && ctx.webScan.fingerprint.jsAssetUrls) || [];\nif (jsUrls.length === 0) {\n  return [{ json: { ...ctx, command: 'echo \\'{\"data\":[]}\\'' } }];\n}\nconst dlCmds = jsUrls.map((u, i) => `curl -s -m 15 -o /tmp/retire-assets/asset${i}.js \"${u}\"`).join(' && ');\nconst command = `mkdir -p /tmp/retire-assets && rm -f /tmp/retire-assets/* && ${dlCmds} && retire --path /tmp/retire-assets --outputformat json --exitwith 0 2>/dev/null || echo '{\"data\":[]}'`;\nreturn [{ json: { ...ctx, command } }];\n"
-      },
-      "id": "2ede6381-f158-46c1-8f30-c1237be4f6af",
-      "name": "Build Component Scan Command",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2688,
-        240
-      ]
-    },
-    {
-      "parameters": {
-        "command": "={{$json.command}}"
-      },
-      "id": "f7dfb7b9-d6f3-4aef-b0ab-bd181f3e6a30",
-      "name": "Run Component Scan",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
-      "position": [
-        2912,
-        240
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst ctx = $('Build Component Scan Command').item.json;\nlet componentFindings = [];\ntry {\n  const out = JSON.parse($json.stdout || '{\"data\":[]}');\n  for (const file of (out.data || [])) {\n    for (const res of (file.results || [])) {\n      for (const vuln of (res.vulnerabilities || [])) {\n        componentFindings.push({\n          component: res.component,\n          version: res.version,\n          severity: vuln.severity || 'unknown',\n          summary: (vuln.identifiers && vuln.identifiers.summary) || null,\n          cve: (vuln.identifiers && vuln.identifiers.CVE) || [],\n          info: vuln.info || [],\n        });\n      }\n    }\n  }\n} catch (e) { componentFindings = []; }\nreturn [{ json: { ...ctx, componentFindings } }];\n"
-      },
-      "id": "adf229eb-659e-45ec-bcfd-f6f89f48b72f",
-      "name": "Parse Component Findings",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3136,
-        240
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "122556ae-762f-4fe2-a41c-8e02839aedf2",
-              "leftValue": "={{ $('Recon Target').item.json.sqlInjectionTest }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            },
-            {
-              "id": "40f32611-cc12-4c2b-9c0e-ca21a1014fe5",
-              "leftValue": "={{ $json.webScan && $json.webScan.reachable }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "037da74b-0c38-4d61-bbe6-e60c424a3a26",
-      "name": "SQL Injection Test?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        3360,
-        240
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\nreturn [{ json: { ...$json, sqlmapScan: { skipped: true, reason: 'toggle off or web target unreachable' } } }];\n"
-      },
-      "id": "759f86ff-e87f-49ed-90c9-4b66e486091d",
-      "name": "Skip SQLMap",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        4032,
-        336
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "ad505ebe-cbc4-4b61-b8bf-13d7d2c6c750",
-              "leftValue": "={{ $('Recon Target').item.json.webVulnScan }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            },
-            {
-              "id": "a8053ca1-8d89-4e9c-ab7f-4902527db22e",
-              "leftValue": "={{ $json.webScan && $json.webScan.reachable }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "058379ff-823e-4614-88c6-91ad8a8b2c17",
-      "name": "Web Vuln Scan?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        4256,
-        240
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\nreturn [{ json: { ...$json, zapScan: { skipped: true, reason: 'toggle off or web target unreachable' } } }];\n"
-      },
-      "id": "23283012-b684-4b01-becf-96f62b4a9aba",
-      "name": "Skip ZAP",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        4480,
-        336
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst ctx = $json;\nconst lines = [];\nconst p = (s='') => lines.push(s);\n\n// --- 1. MITRE ATT&CK Reconnaissance (TA0043) Coverage ---\np('## 1. MITRE ATT&CK Reconnaissance (TA0043) Coverage');\np('');\np('| Technique | Name | Status |');\np('|---|---|---|');\nfor (const c of (ctx.attckCoverage || [])) p(`| ${c.technique} | ${c.name} | ${c.status} |`);\np('');\np('Out of scope: T1589/T1591/T1593.001/T1598 (people/social engineering, explicitly excluded). T1597 (Search Closed Sources) requires paid threat-intel access not available in this platform.');\np('');\n\n// --- 2. Attack Surface Summary ---\np('## 2. Attack Surface Summary');\np('');\np(`- Target: \\`${ctx.target}\\` (resolved IP: \\`${ctx.resolvedIp || 'none'}\\`)`);\np(`- Subdomains discovered: ${(ctx.subdomains || []).length}`);\nconst openPortsList = (ctx.portScan && !ctx.portScan.skipped) ? ctx.portScan.openPorts.map(o => `${o.port}/${o.protocol} (${o.service})`).join(', ') : 'port scan not run';\np(`- Open ports: ${openPortsList || 'none found'}`);\np(`- Web application reachable: ${ctx.webScan ? (ctx.webScan.reachable ? 'yes, at ' + ctx.webScan.origin : 'no') : 'not attempted'}`);\np('');\nif (ctx.escalationRecommendation) { p(`**Local model's escalation read (advisory, not a decision):** ${ctx.escalationRecommendation}`); }\np('');\n\n// --- 3. DNS, WHOIS & Subdomains ---\np('## 3. DNS, WHOIS & Subdomains');\np('');\nconst dns = ctx.dns || {};\nfor (const rt of ['A','AAAA','MX','NS','TXT','SOA']) {\n  const vals = dns[rt] || [];\n  p(`- **${rt}**: ${vals.length ? vals.join(', ') : 'none'}`);\n}\nconst whoisKeys = Object.keys(ctx.whois || {});\np(`- **WHOIS**: ${whoisKeys.length ? whoisKeys.map(k => `${k}: ${ctx.whois[k]}`).join('; ') : 'no data returned'}`);\np(`- **Subdomains**: ${(ctx.subdomains || []).length ? ctx.subdomains.join(', ') : 'none discovered'}`);\np('');\n\n// --- 4. Open Ports & Services ---\np('## 4. Open Ports & Services');\np('');\nif (!ctx.portScan || ctx.portScan.skipped) {\n  p(`Port scan not run (${ctx.portScan ? ctx.portScan.reason : 'scan intensity too low'}).`);\n} else if (!ctx.portScan.openPorts.length) {\n  p('Port scan ran, no open ports found in the scanned range.');\n} else {\n  p('| Port | Protocol | Service (nmap-identified) |');\n  p('|---|---|---|');\n  for (const o of ctx.portScan.openPorts) p(`| ${o.port} | ${o.protocol} | ${o.service} |`);\n}\np('');\n\n// --- 5. Confirmed Findings (Evidence-Backed) ---\np('## 5. Confirmed Findings (Evidence-Backed)');\np('');\nif (ctx.webScan && ctx.webScan.reachable) {\n  const ws = ctx.webScan;\n  p('### Missing Security Headers');\n  if (ws.securityHeaders.missing.length) {\n    for (const h of ws.securityHeaders.missing) p(`- \\`${h}\\`: not set`);\n  } else { p('- None missing - all checked headers present.'); }\n  p('');\n  p('### Cookies');\n  if (ws.cookies.length) {\n    for (const c of ws.cookies) p(`- \\`${c.name}\\`: Secure=${c.secure}, HttpOnly=${c.httpOnly}, SameSite=${c.sameSite}`);\n  } else { p('- No cookies observed.'); }\n  p('');\n  p('### Content Discovery (baselined - soft-404s already excluded)');\n  const hits = (ws.contentDiscovery || []).filter(r => r.distinctFromBaseline);\n  if (hits.length) {\n    p('| Path | Status | Source |');\n    p('|---|---|---|');\n    for (const h of hits) p(`| \\`${h.path}\\` | ${h.status} | ${h.fromJsBundle ? 'discovered in JS bundle (not linked anywhere)' : 'wordlist'} |`);\n  } else { p(`- No genuine hits out of ${(ws.contentDiscovery || []).length} paths checked (all matched the site's baseline/soft-404 response).`); }\n  p('');\n  p('### Technology Fingerprint');\n  if (ws.fingerprint && ws.fingerprint.evidenceStrings.length) {\n    for (const e of ws.fingerprint.evidenceStrings.slice(0, 15)) p(`- ${e}`);\n  } else { p('- No fingerprint evidence collected.'); }\n  p('');\n  p('### Forms / Parameter Surface');\n  if (ws.forms && ws.forms.length) {\n    for (const f of ws.forms) p(`- \\`${f.method} ${f.action}\\` - fields: ${f.fields.join(', ')} (page: ${f.page})`);\n  } else { p('- No server-rendered \\\\<form\\\\> elements found (common for JS-driven SPAs - the real submit targets are the discovered API paths above, not HTML forms).'); }\n  p('');\n} else {\n  p(`Web scan not reachable/not run - ${ctx.webScan ? ctx.webScan.reason : 'no web target'}.`);\n  p('');\n}\n\np('### Vulnerable Components (retire.js against fetched JS bundle)');\nif (ctx.componentFindings && ctx.componentFindings.length) {\n  for (const c of ctx.componentFindings) {\n    p(`- **${c.component} ${c.version}** - severity ${c.severity}${c.cve.length ? ', ' + c.cve.join(', ') : ''}: ${c.summary || 'see info links'}`);\n  }\n} else { p('- retire.js scan ran, no known-vulnerable component versions matched.'); }\np('');\n\np('### SQL Injection Testing (sqlmap)');\nif (!ctx.sqlmapScan || ctx.sqlmapScan.skipped) {\n  p(`- Not run (${ctx.sqlmapScan ? ctx.sqlmapScan.reason : 'toggle off'}).`);\n} else if (ctx.sqlmapScan.vulnerable) {\n  for (const f of ctx.sqlmapScan.findings) p(`- Parameter \\`${f.parameter}\\`: ${f.type || 'injectable'} - ${f.title || ''}`);\n} else { p('- sqlmap ran (`--crawl=2 --forms --level=1 --risk=1`), no injectable parameters found.'); }\np('');\n\np('### Web Vulnerability Scan (OWASP ZAP)');\nif (!ctx.zapScan || ctx.zapScan.skipped) {\n  p(`- Not run (${ctx.zapScan ? ctx.zapScan.reason : 'toggle off'}).`);\n} else if (!ctx.zapScan.reachable) {\n  p(`- Attempted, ZAP unreachable (${ctx.zapScan.reason}).`);\n} else if (ctx.zapScan.alertCount === 0) {\n  p('- ZAP spider + active scan completed, no alerts raised.');\n} else {\n  p(`- ZAP spider complete: ${ctx.zapScan.spiderComplete}, active scan complete: ${ctx.zapScan.activeScanComplete}, ${ctx.zapScan.alertCount} alert(s):`);\n  const byName = {};\n  for (const a of ctx.zapScan.alerts) {\n    byName[a.name] = byName[a.name] || { risk: a.risk, urls: [] };\n    if (byName[a.name].urls.length < 5) byName[a.name].urls.push(a.url);\n  }\n  for (const [name, info] of Object.entries(byName)) {\n    p(`  - **${name}** (${info.risk}): ${info.urls.join(', ')}`);\n  }\n}\np('');\n\n// --- 8. Testing Coverage & Gaps ---\np('## 8. Testing Coverage & Gaps');\np('');\np('| Category | Tested this scan? |');\np('|---|---|');\np(`| DNS/WHOIS/Subdomain enumeration | Yes |`);\np(`| Port scanning | ${ctx.portScan && !ctx.portScan.skipped ? 'Yes' : 'No - scanIntensity below dns+ports'} |`);\np(`| Security headers / cookie flags | ${ctx.webScan && ctx.webScan.reachable ? 'Yes' : 'No - web target unreachable/not scanned'} |`);\np(`| Content discovery (baselined) | ${ctx.webScan && ctx.webScan.reachable ? 'Yes' : 'No'} |`);\np(`| Vulnerable components (retire.js) | ${ctx.componentFindings !== undefined ? 'Yes' : 'No'} |`);\np(`| SQL/NoSQL injection (sqlmap) | ${ctx.sqlmapScan && !ctx.sqlmapScan.skipped ? 'Yes' : 'No - toggle off or web unreachable'} |`);\np(`| XSS / broader web vuln scan (ZAP) | ${ctx.zapScan && !ctx.zapScan.skipped && ctx.zapScan.reachable ? 'Yes' : 'No - toggle off, ZAP not running, or web unreachable'} |`);\np(`| Broken Authentication (rate-limiting, JWT weaknesses, password reset flaws) | No - requires active authenticated testing not performed by this scan |`);\np(`| Broken Access Control / IDOR | No - requires authenticated, session-aware testing |`);\np(`| Broken Anti-Automation | No - requires repeated-request active testing |`);\np(`| Cryptographic Issues (TLS/cipher grade) | No - not implemented in this scan |`);\np(`| XML External Entities (XXE) | No - requires crafted payloads to file-upload endpoints |`);\np(`| Insecure Deserialization | No - requires crafted payload testing |`);\np(`| Insufficient Logging & Monitoring | Not detectable from external recon - requires server-side log access |`);\np('');\n\nconst fullText = lines.join('\\n');\nconst splitIdx = fullText.indexOf('## 8. Testing Coverage & Gaps');\nconst sections1to5 = splitIdx >= 0 ? fullText.slice(0, splitIdx) : fullText;\nconst section8 = splitIdx >= 0 ? fullText.slice(splitIdx) : '';\nreturn [{ json: { ...ctx, sections1to5, section8 } }];\n"
-      },
-      "id": "ac68227e-210e-45fd-9b22-14743380c2e5",
-      "name": "Build Deterministic Report Sections",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        4928,
-        240
-      ]
-    },
-    {
-      "id": "685ba0d6-ce44-43e4-ac0b-f69623df1bc3",
-      "name": "Dispatch SQLi Test",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.2,
-      "position": [
-        3520,
-        140
-      ],
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "cUTQYfv1uHaYAoQE",
-          "mode": "id"
-        },
-        "workflowInputs": {
-          "value": {
-            "target": "={{ $json.target }}",
-            "origin": "={{ $json.webScan.origin }}"
-          }
-        }
+    "options": {}
+   },
+   "id": "a1000000-0000-4000-8000-000000000001",
+   "name": "Recon Target",
+   "type": "n8n-nodes-base.formTrigger",
+   "typeVersion": 2.2,
+   "position": [
+    0,
+    504
+   ],
+   "webhookId": "a1000000-1d26-4141-9543-08e6e245f1ae"
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst raw = (($json.target) || '').trim().toLowerCase();\nconst authorized = $json.authorized === true || $json.authorized === 'true';\nconst hostnameRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;\nconst ipv4Re = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\nconst ipv6Re = /^[0-9a-f:]+$/i;\nconst cidrRe = /^(\\d{1,3}\\.){3}\\d{1,3}\\/(\\d{1,2})$/;\nconst cidrMatch = raw.match(cidrRe);\nlet isCidr = false, blocked = null;\nif (cidrMatch) {\n  const prefix = Number(cidrMatch[2]);\n  if (!authorized) { blocked = 'authorization checkbox not confirmed'; }\n  else if (prefix < 24) { blocked = `CIDR range too large (/${prefix} - this tool bounds network sweeps to /24 or smaller, max 256 addresses)`; }\n  else { isCidr = true; }\n  return [{ json: { target: raw, isIp: false, isCidr, scanIntensity: $json.scanIntensity || 'dns-only', blocked } }];\n}\nconst isIp = ipv4Re.test(raw) || (raw.includes(':') && ipv6Re.test(raw));\nconst valid = raw.length > 0 && raw.length < 254 && (isIp || hostnameRe.test(raw));\nblocked = !authorized ? 'authorization checkbox not confirmed' : (!valid ? 'target failed validation' : null);\nreturn [{ json: { target: raw, isIp, isCidr: false, scanIntensity: $json.scanIntensity || 'dns-only', blocked } }];\n"
+   },
+   "id": "a1000000-0000-4000-8000-000000000002",
+   "name": "Validate & Normalize",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    224,
+    504
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict"
+     },
+     "conditions": [
+      {
+       "id": "c1",
+       "leftValue": "={{ $json.blocked }}",
+       "rightValue": "",
+       "operator": {
+        "type": "string",
+        "operation": "empty",
+        "singleValue": true
+       }
       }
+     ],
+     "combinator": "and"
     },
-    {
-      "id": "33f698d1-7834-4a3c-bdc1-f00a9b5445b2",
-      "name": "Merge SQLMap Result",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3740,
-        140
-      ],
-      "parameters": {
-        "jsCode": "\nconst ctx = $('Capture Escalation Reasoning').item.json;\nreturn [{ json: { ...ctx, sqlmapScan: $json } }];\n"
+    "options": {}
+   },
+   "id": "a1000000-0000-4000-8000-000000000003",
+   "name": "Proceed?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    448,
+    504
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "return [{ json: { status: 'blocked', reason: $json.blocked, target: $json.target } }];"
+   },
+   "id": "a1000000-0000-4000-8000-000000000004",
+   "name": "Blocked",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    672,
+    600
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict"
+     },
+     "conditions": [
+      {
+       "id": "c2",
+       "leftValue": "={{ $json.isCidr }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
       }
+     ],
+     "combinator": "and"
     },
-    {
-      "id": "7bee9eb6-e8a9-432f-aa31-3d14ad508fdf",
-      "name": "Dispatch Web Vuln Scan",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.2,
-      "position": [
-        4400,
-        140
-      ],
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "FzJKTUzni59sbOgH",
-          "mode": "id"
-        },
-        "workflowInputs": {
-          "value": {
-            "target": "={{ $json.target }}",
-            "origin": "={{ $json.webScan.origin }}"
-          }
-        }
-      }
+    "options": {}
+   },
+   "id": "a1000000-0000-4000-8000-000000000005",
+   "name": "Is CIDR?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    672,
+    408
+   ]
+  },
+  {
+   "parameters": {
+    "command": "=timeout 60 nmap -sn {{$json.target}} -oX -"
+   },
+   "id": "a1000000-0000-4000-8000-000000000006",
+   "name": "Host Discovery",
+   "type": "n8n-nodes-base.executeCommand",
+   "typeVersion": 1,
+   "position": [
+    896,
+    336
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst norm = $('Validate & Normalize').item.json;\nconst recon = $('Recon Target').item.json;\nconst xml = $json.stdout || '';\nconst hostBlockRe = /<host>([\\s\\S]*?)<\\/host>/g;\nconst hosts = [];\nlet hm;\nwhile ((hm = hostBlockRe.exec(xml)) !== null) {\n  const block = hm[1];\n  if (!/<status state=\"up\"/.test(block)) continue;\n  const addrMatch = block.match(/<address addr=\"([\\d.]+)\" addrtype=\"ipv4\"/);\n  if (addrMatch) hosts.push(addrMatch[1]);\n}\nconst prefixMatch = norm.target.match(/\\/(\\d{1,2})$/);\nconst prefix = prefixMatch ? Number(prefixMatch[1]) : 24;\nconst totalInRange = Math.pow(2, 32 - prefix);\nconst ratio = totalInRange > 0 ? hosts.length / totalInRange : 0;\n\nif (hosts.length === 0) {\n  return [{ json: { noHostsFound: true, cidr: norm.target, hostsDiscovered: 0, totalInRange } }];\n}\nif (ratio > 0.5) {\n  return [{ json: { unroutable: true, cidr: norm.target, hostsDiscovered: hosts.length, totalInRange } }];\n}\nconst capped = hosts.slice(0, 20);\nreturn capped.map((ip) => ({ json: {\n  target: ip, isIp: true, scanIntensity: norm.scanIntensity,\n  sqlInjectionTest: recon.sqlInjectionTest, webVulnScan: recon.webVulnScan,\n  __cidr: norm.target, __hostsDiscovered: hosts.length, __hostsScanned: capped.length,\n} }));\n"
+   },
+   "id": "a1000000-0000-4000-8000-000000000007",
+   "name": "Parse Live Hosts",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1120,
+    336
+   ]
+  },
+  {
+   "parameters": {
+    "workflowId": {
+     "__rl": true,
+     "value": "kib34AggAcopWJZ9",
+     "mode": "id"
     },
-    {
-      "id": "1325b9da-8c04-4415-bfbc-56e30891eb34",
-      "name": "Merge ZAP Result",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        4620,
-        140
-      ],
-      "parameters": {
-        "jsCode": "\nconst ctx = $('Web Vuln Scan?').item.json;\nreturn [{ json: { ...ctx, zapScan: $json } }];\n"
-      }
+    "workflowInputs": {
+     "value": {
+      "target": "={{ $json.target }}",
+      "isIp": "={{ $json.isIp }}",
+      "scanIntensity": "={{ $json.scanIntensity }}",
+      "sqlInjectionTest": "={{ $json.sqlInjectionTest !== undefined ? $json.sqlInjectionTest : $('Recon Target').item.json.sqlInjectionTest }}",
+      "webVulnScan": "={{ $json.webVulnScan !== undefined ? $json.webVulnScan : $('Recon Target').item.json.webVulnScan }}"
+     }
     },
-    {
-      "id": "46067c67-4038-4364-bf4d-0a59c6950ff2",
-      "name": "Dispatch SQLi Test",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.2,
-      "position": [
-        3520,
-        140
-      ],
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "cUTQYfv1uHaYAoQE",
-          "mode": "id"
-        },
-        "workflowInputs": {
-          "value": {
-            "target": "={{ $json.target }}",
-            "origin": "={{ $json.webScan.origin }}"
-          }
-        }
-      }
-    },
-    {
-      "id": "6cd62f0e-ea18-4f96-ad62-f5599f39442b",
-      "name": "Merge SQLMap Result",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3740,
-        140
-      ],
-      "parameters": {
-        "jsCode": "\nconst ctx = $('Capture Escalation Reasoning').item.json;\nreturn [{ json: { ...ctx, sqlmapScan: $json } }];\n"
-      }
-    },
-    {
-      "id": "94aaa98d-65e0-4ad8-8152-d8a9d7fb4a55",
-      "name": "Dispatch Web Vuln Scan",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.2,
-      "position": [
-        4400,
-        140
-      ],
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "FzJKTUzni59sbOgH",
-          "mode": "id"
-        },
-        "workflowInputs": {
-          "value": {
-            "target": "={{ $json.target }}",
-            "origin": "={{ $json.webScan.origin }}"
-          }
-        }
-      }
-    },
-    {
-      "id": "8d95cc34-9135-4766-9277-4bc555485d97",
-      "name": "Merge ZAP Result",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        4620,
-        140
-      ],
-      "parameters": {
-        "jsCode": "\nconst ctx = $('Web Vuln Scan?').item.json;\nreturn [{ json: { ...ctx, zapScan: $json } }];\n"
-      }
-    },
-    {
-      "id": "8bf6abc5-7b6f-4d04-a6f2-86899822c9fe",
-      "name": "Dispatch SQLi Test",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.2,
-      "position": [
-        3520,
-        140
-      ],
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "cUTQYfv1uHaYAoQE",
-          "mode": "id"
-        },
-        "workflowInputs": {
-          "value": {
-            "target": "={{ $json.target }}",
-            "origin": "={{ $json.webScan.origin }}"
-          }
-        }
-      }
-    },
-    {
-      "id": "1b404f19-4946-4682-a998-932dd7e6772c",
-      "name": "Merge SQLMap Result",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3740,
-        140
-      ],
-      "parameters": {
-        "jsCode": "\nconst ctx = $('Capture Escalation Reasoning').item.json;\nreturn [{ json: { ...ctx, sqlmapScan: $json } }];\n"
-      }
-    },
-    {
-      "id": "5c6870e0-2e05-4485-bc58-8b28d46138fe",
-      "name": "Dispatch Web Vuln Scan",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.2,
-      "position": [
-        4400,
-        140
-      ],
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "FzJKTUzni59sbOgH",
-          "mode": "id"
-        },
-        "workflowInputs": {
-          "value": {
-            "target": "={{ $json.target }}",
-            "origin": "={{ $json.webScan.origin }}"
-          }
-        }
-      }
-    },
-    {
-      "id": "c80dfaca-a27e-4415-90b0-d0ba24122c9c",
-      "name": "Merge ZAP Result",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        4620,
-        140
-      ],
-      "parameters": {
-        "jsCode": "\nconst ctx = $('Web Vuln Scan?').item.json;\nreturn [{ json: { ...ctx, zapScan: $json } }];\n"
-      }
-    },
-    {
-      "id": "779a1eaa-a5a9-418a-99df-4dbe9deb43d3",
-      "name": "Ollama Chat Model (Reasoning)",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-      "typeVersion": 1,
-      "position": [
-        3300,
-        460
-      ],
-      "parameters": {
-        "model": "qwen3:8b",
-        "options": {}
-      },
-      "credentials": {
-        "ollamaApi": {
-          "id": "3XBbi6hde7mYgJFr",
-          "name": "Recon Platform Ollama"
-        }
-      }
-    },
-    {
-      "id": "8cfeee83-ed87-4c52-9efc-c7d49a7c1a0c",
-      "name": "Escalation Reasoning",
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.7,
-      "position": [
-        3300,
-        300
-      ],
-      "parameters": {
-        "promptType": "define",
-        "text": "=Answer in 2-4 short sentences, no preamble, no thinking out loud, plain text only. Given this recon data for {{$json.target}} - open ports: {{ JSON.stringify($json.portScan) }}, discovered API/content paths (non-404): {{ JSON.stringify(($json.webScan && $json.webScan.contentDiscovery || []).filter(r => r.distinctFromBaseline)) }}, forms: {{ JSON.stringify($json.webScan && $json.webScan.forms) }} - is deeper active testing (SQL injection testing, a full web vulnerability scan) likely to be worthwhile here, and specifically why or why not based on what was actually found? This is advisory only for a human operator who separately controls whether those scans actually run - don't tell them what to do, just give your read on the evidence.",
-        "options": {}
-      }
-    },
-    {
-      "id": "b0830a14-9252-45f0-b8e9-d62bcfd55235",
-      "name": "Capture Escalation Reasoning",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3300,
-        140
-      ],
-      "parameters": {
-        "jsCode": "\nconst ctx = $('Parse Component Findings').item.json;\nlet text = $json.text || $json.output || '';\ntext = text.replace(/^[\\s\\S]*?<\\/think>\\s*/i, '').trim();\n// Untagged models ramble then give the real answer as a final block, not\n// always separated by a blank line - split on single newlines too and take\n// the last non-empty chunk as the answer.\nif (text.length > 400) {\n  const chunks = text.split(/\\n+/).map(c => c.trim()).filter(Boolean);\n  if (chunks.length > 1) text = chunks[chunks.length - 1];\n}\nreturn [{ json: { ...ctx, escalationRecommendation: text || '(no recommendation generated)' } }];\n"
-      }
+    "options": {
+     "waitForSubWorkflow": true
     }
+   },
+   "id": "a1000000-0000-4000-8000-000000000008",
+   "name": "Dispatch Single Host Recon",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "typeVersion": 1.2,
+   "position": [
+    1568,
+    240
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst items = $input.all();\nconst norm = $('Validate & Normalize').item.json;\nconst now = new Date();\nconst stamp = now.toISOString().replace(/[-:T]/g,'').slice(0,15).replace(/(\\d{8})(\\d{6})/, '$1-$2');\nlet rows = items.map(it => {\n  const j = it.json;\n  const t = j.target || (j.__cidr ? j.__cidr : 'unknown');\n  return `| ${t} | see recon/${t}-*.md |`;\n}).join('\\n');\nconst summaryContent = `# Network Sweep Summary: ${norm.target}\\n\\n- Timestamp: ${stamp}\\n- Hosts discovered: ${items[0]?.json?.__hostsDiscovered ?? 0}\\n- Hosts scanned: ${items.length}\\n\\n| Host | Report |\\n|---|---|\\n${rows}\\n`;\nreturn [{ json: { summaryContent, summaryFilename: `network-sweep-${norm.target.replace(/\\//g,'_')}-${stamp}.md` } }];\n"
+   },
+   "id": "a1000000-0000-4000-8000-000000000009",
+   "name": "Build Network Sweep Summary",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1792,
+    240
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "toText",
+    "sourceProperty": "summaryContent",
+    "options": {
+     "fileName": "={{ $json.summaryFilename }}"
+    }
+   },
+   "id": "a1000000-0000-4000-8000-00000000000a",
+   "name": "Convert Summary to File",
+   "type": "n8n-nodes-base.convertToFile",
+   "typeVersion": 1.1,
+   "position": [
+    2016,
+    336
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "write",
+    "fileName": "=/data/shared/recon/{{ $binary.data.fileName }}",
+    "options": {}
+   },
+   "id": "a1000000-0000-4000-8000-00000000000b",
+   "name": "Persist Sweep Summary",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1,
+   "position": [
+    2240,
+    336
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict"
+     },
+     "conditions": [
+      {
+       "id": "c3",
+       "leftValue": "={{ $json.target }}",
+       "rightValue": "",
+       "operator": {
+        "type": "string",
+        "operation": "notEmpty",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "id": "a1000000-0000-4000-8000-00000000000c",
+   "name": "Reachable Hosts?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    1344,
+    336
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst items = $input.all();\nconst norm = $('Validate & Normalize').item.json;\nconst item = items[0]?.json || {};\nconst now = new Date();\nconst stamp = now.toISOString().replace(/[-:T]/g,'').slice(0,15).replace(/(\\d{8})(\\d{6})/, '$1-$2');\nlet reason;\nif (item.unroutable) {\n  reason = `${item.hostsDiscovered} of ${item.totalInRange} addresses in ${norm.target} reported \"up\" during host discovery. That is an implausibly high live-host ratio for any real network and matches this platform's known NAT limitation: the scanning container has no real route to this range, and the podman/gvproxy NAT layer fabricates connection-refused responses for unroutable destinations rather than timing out. Treating this range as unroutable from the current scanning platform rather than reporting fabricated per-host findings.`;\n} else {\n  reason = `0 of ${item.totalInRange || '?'} addresses in ${norm.target} responded to host discovery. Either the range is genuinely empty/down, or (as with other private ranges on this platform) it is not reachable from the scanning container at all. No per-host recon was dispatched.`;\n}\nconst summaryContent = `# Network Sweep Summary: ${norm.target}\\n\\n- Timestamp: ${stamp}\\n- Status: unroutable\\n\\n${reason}\\n`;\nreturn [{ json: { summaryContent, summaryFilename: `network-sweep-${norm.target.replace(/\\//g,'_')}-${stamp}.md` } }];\n"
+   },
+   "id": "a1000000-0000-4000-8000-00000000000d",
+   "name": "Build Unroutable Notice",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1792,
+    432
+   ]
+  }
+ ],
+ "connections": {
+  "Recon Target": {
+   "main": [
+    [
+     {
+      "node": "Validate & Normalize",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Validate & Normalize": {
+   "main": [
+    [
+     {
+      "node": "Proceed?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Proceed?": {
+   "main": [
+    [
+     {
+      "node": "Is CIDR?",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Blocked",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Is CIDR?": {
+   "main": [
+    [
+     {
+      "node": "Host Discovery",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Dispatch Single Host Recon",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Host Discovery": {
+   "main": [
+    [
+     {
+      "node": "Parse Live Hosts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Parse Live Hosts": {
+   "main": [
+    [
+     {
+      "node": "Reachable Hosts?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dispatch Single Host Recon": {
+   "main": [
+    [
+     {
+      "node": "Build Network Sweep Summary",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Network Sweep Summary": {
+   "main": [
+    [
+     {
+      "node": "Convert Summary to File",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Convert Summary to File": {
+   "main": [
+    [
+     {
+      "node": "Persist Sweep Summary",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Reachable Hosts?": {
+   "main": [
+    [
+     {
+      "node": "Dispatch Single Host Recon",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Build Unroutable Notice",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Unroutable Notice": {
+   "main": [
+    [
+     {
+      "node": "Convert Summary to File",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "callerPolicy": "workflowsFromSameOwner",
+  "availableInMCP": false
+ },
+ "staticData": null,
+ "meta": null,
+ "pinData": {},
+ "versionId": "69967f34-5004-49ff-93e4-59ffb7456a4d",
+ "activeVersionId": "5b729ccb-fbf2-42d9-95c8-c641d4e7e8f9",
+ "versionCounter": 26,
+ "triggerCount": 1,
+ "shared": [
+  {
+   "updatedAt": "2026-08-23T15:53:40.878Z",
+   "createdAt": "2026-08-23T15:53:40.878Z",
+   "role": "workflow:owner",
+   "workflowId": "RMJAXbF2cVeHL4Rb",
+   "projectId": "rM80GXjDL4djKnJM",
+   "project": {
+    "updatedAt": "2026-08-23T15:47:19.791Z",
+    "createdAt": "2026-08-23T15:46:11.581Z",
+    "id": "rM80GXjDL4djKnJM",
+    "name": "cjeggo <cjeggo@proton.me>",
+    "type": "personal",
+    "icon": null,
+    "description": null,
+    "creatorId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
+   }
+  }
+ ],
+ "tags": [],
+ "activeVersion": {
+  "updatedAt": "2026-08-23T16:20:36.637Z",
+  "createdAt": "2026-08-23T16:20:36.637Z",
+  "versionId": "5b729ccb-fbf2-42d9-95c8-c641d4e7e8f9",
+  "workflowId": "RMJAXbF2cVeHL4Rb",
+  "nodes": [
+   {
+    "parameters": {
+     "formTitle": "Recon / Attack-Surface Scan",
+     "formDescription": "Authorized recon scan of a domain, IP, or /24-or-smaller CIDR range.",
+     "formFields": {
+      "values": [
+       {
+        "fieldLabel": "target",
+        "placeholder": "example.com, 1.2.3.4, or 10.0.0.0/24",
+        "requiredField": true
+       },
+       {
+        "fieldLabel": "authorized",
+        "fieldType": "checkbox",
+        "fieldOptions": {
+         "values": [
+          {}
+         ]
+        },
+        "requiredField": true
+       },
+       {
+        "fieldLabel": "scanIntensity",
+        "fieldType": "dropdown",
+        "fieldOptions": {
+         "values": [
+          {
+           "option": "dns-only"
+          },
+          {
+           "option": "dns+ports"
+          },
+          {
+           "option": "dns+ports+web"
+          }
+         ]
+        },
+        "requiredField": true
+       },
+       {
+        "fieldLabel": "sqlInjectionTest",
+        "fieldType": "checkbox",
+        "fieldOptions": {
+         "values": [
+          {}
+         ]
+        }
+       },
+       {
+        "fieldLabel": "webVulnScan",
+        "fieldType": "checkbox",
+        "fieldOptions": {
+         "values": [
+          {}
+         ]
+        }
+       }
+      ]
+     },
+     "options": {}
+    },
+    "id": "a1000000-0000-4000-8000-000000000001",
+    "name": "Recon Target",
+    "type": "n8n-nodes-base.formTrigger",
+    "typeVersion": 2.2,
+    "position": [
+     0,
+     432
+    ],
+    "webhookId": "a1000000-1d26-4141-9543-08e6e245f1ae"
+   },
+   {
+    "parameters": {
+     "jsCode": "\nconst raw = (($json.target) || '').trim().toLowerCase();\nconst authorized = $json.authorized === true || $json.authorized === 'true';\nconst hostnameRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;\nconst ipv4Re = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\nconst ipv6Re = /^[0-9a-f:]+$/i;\nconst cidrRe = /^(\\d{1,3}\\.){3}\\d{1,3}\\/(\\d{1,2})$/;\nconst cidrMatch = raw.match(cidrRe);\nlet isCidr = false, blocked = null;\nif (cidrMatch) {\n  const prefix = Number(cidrMatch[2]);\n  if (!authorized) { blocked = 'authorization checkbox not confirmed'; }\n  else if (prefix < 24) { blocked = `CIDR range too large (/${prefix} - this tool bounds network sweeps to /24 or smaller, max 256 addresses)`; }\n  else { isCidr = true; }\n  return [{ json: { target: raw, isIp: false, isCidr, scanIntensity: $json.scanIntensity || 'dns-only', blocked } }];\n}\nconst isIp = ipv4Re.test(raw) || (raw.includes(':') && ipv6Re.test(raw));\nconst valid = raw.length > 0 && raw.length < 254 && (isIp || hostnameRe.test(raw));\nblocked = !authorized ? 'authorization checkbox not confirmed' : (!valid ? 'target failed validation' : null);\nreturn [{ json: { target: raw, isIp, isCidr: false, scanIntensity: $json.scanIntensity || 'dns-only', blocked } }];\n"
+    },
+    "id": "a1000000-0000-4000-8000-000000000002",
+    "name": "Validate & Normalize",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     224,
+     432
+    ]
+   },
+   {
+    "parameters": {
+     "conditions": {
+      "options": {
+       "caseSensitive": true,
+       "leftValue": "",
+       "typeValidation": "strict"
+      },
+      "conditions": [
+       {
+        "id": "c1",
+        "leftValue": "={{ $json.blocked }}",
+        "rightValue": "",
+        "operator": {
+         "type": "string",
+         "operation": "empty",
+         "singleValue": true
+        }
+       }
+      ],
+      "combinator": "and"
+     }
+    },
+    "id": "a1000000-0000-4000-8000-000000000003",
+    "name": "Proceed?",
+    "type": "n8n-nodes-base.if",
+    "typeVersion": 2.2,
+    "position": [
+     448,
+     432
+    ]
+   },
+   {
+    "parameters": {
+     "jsCode": "return [{ json: { status: 'blocked', reason: $json.blocked, target: $json.target } }];"
+    },
+    "id": "a1000000-0000-4000-8000-000000000004",
+    "name": "Blocked",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     672,
+     632
+    ]
+   },
+   {
+    "parameters": {
+     "conditions": {
+      "options": {
+       "caseSensitive": true,
+       "leftValue": "",
+       "typeValidation": "strict"
+      },
+      "conditions": [
+       {
+        "id": "c2",
+        "leftValue": "={{ $json.isCidr }}",
+        "rightValue": true,
+        "operator": {
+         "type": "boolean",
+         "operation": "true",
+         "singleValue": true
+        }
+       }
+      ],
+      "combinator": "and"
+     }
+    },
+    "id": "a1000000-0000-4000-8000-000000000005",
+    "name": "Is CIDR?",
+    "type": "n8n-nodes-base.if",
+    "typeVersion": 2.2,
+    "position": [
+     672,
+     332
+    ]
+   },
+   {
+    "parameters": {
+     "command": "=timeout 60 nmap -sn {{$json.target}} -oX -"
+    },
+    "id": "a1000000-0000-4000-8000-000000000006",
+    "name": "Host Discovery",
+    "type": "n8n-nodes-base.executeCommand",
+    "typeVersion": 1,
+    "position": [
+     896,
+     232
+    ],
+    "onError": "continueRegularOutput"
+   },
+   {
+    "parameters": {
+     "jsCode": "\nconst norm = $('Validate & Normalize').item.json;\nconst recon = $('Recon Target').item.json;\nconst xml = $json.stdout || '';\nconst hostBlockRe = /<host>([\\s\\S]*?)<\\/host>/g;\nconst hosts = [];\nlet hm;\nwhile ((hm = hostBlockRe.exec(xml)) !== null) {\n  const block = hm[1];\n  if (!/<status state=\"up\"/.test(block)) continue;\n  const addrMatch = block.match(/<address addr=\"([\\d.]+)\" addrtype=\"ipv4\"/);\n  if (addrMatch) hosts.push(addrMatch[1]);\n}\nconst prefixMatch = norm.target.match(/\\/(\\d{1,2})$/);\nconst prefix = prefixMatch ? Number(prefixMatch[1]) : 24;\nconst totalInRange = Math.pow(2, 32 - prefix);\nconst ratio = totalInRange > 0 ? hosts.length / totalInRange : 0;\n\nif (hosts.length === 0) {\n  return [{ json: { noHostsFound: true, cidr: norm.target, hostsDiscovered: 0, totalInRange } }];\n}\nif (ratio > 0.5) {\n  return [{ json: { unroutable: true, cidr: norm.target, hostsDiscovered: hosts.length, totalInRange } }];\n}\nconst capped = hosts.slice(0, 20);\nreturn capped.map((ip) => ({ json: {\n  target: ip, isIp: true, scanIntensity: norm.scanIntensity,\n  sqlInjectionTest: recon.sqlInjectionTest, webVulnScan: recon.webVulnScan,\n  __cidr: norm.target, __hostsDiscovered: hosts.length, __hostsScanned: capped.length,\n} }));\n"
+    },
+    "id": "a1000000-0000-4000-8000-000000000007",
+    "name": "Parse Live Hosts",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     1120,
+     232
+    ]
+   },
+   {
+    "parameters": {
+     "workflowId": {
+      "__rl": true,
+      "value": "kib34AggAcopWJZ9",
+      "mode": "id"
+     },
+     "workflowInputs": {
+      "value": {
+       "target": "={{ $json.target }}",
+       "isIp": "={{ $json.isIp }}",
+       "scanIntensity": "={{ $json.scanIntensity }}",
+       "sqlInjectionTest": "={{ $json.sqlInjectionTest !== undefined ? $json.sqlInjectionTest : $('Recon Target').item.json.sqlInjectionTest }}",
+       "webVulnScan": "={{ $json.webVulnScan !== undefined ? $json.webVulnScan : $('Recon Target').item.json.webVulnScan }}"
+      }
+     },
+     "options": {
+      "waitForSubWorkflow": true
+     }
+    },
+    "id": "a1000000-0000-4000-8000-000000000008",
+    "name": "Dispatch Single Host Recon",
+    "type": "n8n-nodes-base.executeWorkflow",
+    "typeVersion": 1.2,
+    "position": [
+     1344,
+     332
+    ]
+   },
+   {
+    "parameters": {
+     "mode": "runOnceForAllItems",
+     "jsCode": "\nconst items = $input.all();\nconst norm = $('Validate & Normalize').item.json;\nconst now = new Date();\nconst stamp = now.toISOString().replace(/[-:T]/g,'').slice(0,15).replace(/(\\d{8})(\\d{6})/, '$1-$2');\nlet rows = items.map(it => {\n  const j = it.json;\n  const t = j.target || (j.__cidr ? j.__cidr : 'unknown');\n  return `| ${t} | see recon/${t}-*.md |`;\n}).join('\\n');\nconst summaryContent = `# Network Sweep Summary: ${norm.target}\\n\\n- Timestamp: ${stamp}\\n- Hosts discovered: ${items[0]?.json?.__hostsDiscovered ?? 0}\\n- Hosts scanned: ${items.length}\\n\\n| Host | Report |\\n|---|---|\\n${rows}\\n`;\nreturn [{ json: { summaryContent, summaryFilename: `network-sweep-${norm.target.replace(/\\//g,'_')}-${stamp}.md` } }];\n"
+    },
+    "id": "a1000000-0000-4000-8000-000000000009",
+    "name": "Build Network Sweep Summary",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     1568,
+     232
+    ]
+   },
+   {
+    "parameters": {
+     "operation": "toText",
+     "sourceProperty": "summaryContent",
+     "options": {
+      "fileName": "={{ $json.summaryFilename }}"
+     }
+    },
+    "id": "a1000000-0000-4000-8000-00000000000a",
+    "name": "Convert Summary to File",
+    "type": "n8n-nodes-base.convertToFile",
+    "typeVersion": 1.1,
+    "position": [
+     1792,
+     232
+    ]
+   },
+   {
+    "parameters": {
+     "operation": "write",
+     "fileName": "=/data/shared/recon/{{ $binary.data.fileName }}"
+    },
+    "id": "a1000000-0000-4000-8000-00000000000b",
+    "name": "Persist Sweep Summary",
+    "type": "n8n-nodes-base.readWriteFile",
+    "typeVersion": 1,
+    "position": [
+     2016,
+     232
+    ]
+   },
+   {
+    "parameters": {
+     "conditions": {
+      "options": {
+       "caseSensitive": true,
+       "leftValue": "",
+       "typeValidation": "strict"
+      },
+      "conditions": [
+       {
+        "id": "c3",
+        "leftValue": "={{ $json.target }}",
+        "rightValue": "",
+        "operator": {
+         "type": "string",
+         "operation": "notEmpty",
+         "singleValue": true
+        }
+       }
+      ],
+      "combinator": "and"
+     }
+    },
+    "id": "a1000000-0000-4000-8000-00000000000c",
+    "name": "Reachable Hosts?",
+    "type": "n8n-nodes-base.if",
+    "typeVersion": 2.2,
+    "position": [
+     1344,
+     232
+    ]
+   },
+   {
+    "parameters": {
+     "mode": "runOnceForAllItems",
+     "jsCode": "\nconst items = $input.all();\nconst norm = $('Validate & Normalize').item.json;\nconst item = items[0]?.json || {};\nconst now = new Date();\nconst stamp = now.toISOString().replace(/[-:T]/g,'').slice(0,15).replace(/(\\d{8})(\\d{6})/, '$1-$2');\nlet reason;\nif (item.unroutable) {\n  reason = `${item.hostsDiscovered} of ${item.totalInRange} addresses in ${norm.target} reported \"up\" during host discovery. That is an implausibly high live-host ratio for any real network and matches this platform's known NAT limitation: the scanning container has no real route to this range, and the podman/gvproxy NAT layer fabricates connection-refused responses for unroutable destinations rather than timing out. Treating this range as unroutable from the current scanning platform rather than reporting fabricated per-host findings.`;\n} else {\n  reason = `0 of ${item.totalInRange || '?'} addresses in ${norm.target} responded to host discovery. Either the range is genuinely empty/down, or (as with other private ranges on this platform) it is not reachable from the scanning container at all. No per-host recon was dispatched.`;\n}\nconst summaryContent = `# Network Sweep Summary: ${norm.target}\\n\\n- Timestamp: ${stamp}\\n- Status: unroutable\\n\\n${reason}\\n`;\nreturn [{ json: { summaryContent, summaryFilename: `network-sweep-${norm.target.replace(/\\//g,'_')}-${stamp}.md` } }];\n"
+    },
+    "id": "a1000000-0000-4000-8000-00000000000d",
+    "name": "Build Unroutable Notice",
+    "type": "n8n-nodes-base.code",
+    "typeVersion": 2,
+    "position": [
+     1344,
+     432
+    ]
+   }
   ],
   "connections": {
-    "Recon Target": {
-      "main": [
-        [
-          {
-            "node": "Validate & Normalize",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate & Normalize": {
-      "main": [
-        [
-          {
-            "node": "Proceed?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Proceed?": {
-      "main": [
-        [
-          {
-            "node": "DNS Records",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Blocked",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "DNS Records": {
-      "main": [
-        [
-          {
-            "node": "Parse DNS",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse DNS": {
-      "main": [
-        [
-          {
-            "node": "crt.sh Subdomains",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "WHOIS Lookup",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "crt.sh Subdomains": {
-      "main": [
-        [
-          {
-            "node": "Merge DNS + Subdomains",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge DNS + Subdomains": {
-      "main": [
-        [
-          {
-            "node": "Port Scan?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Port Scan?": {
-      "main": [
-        [
-          {
-            "node": "Nmap Top Ports",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Skip Port Scan",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Nmap Top Ports": {
-      "main": [
-        [
-          {
-            "node": "Parse Nmap",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Nmap": {
-      "main": [
-        [
-          {
-            "node": "Web Scan?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Skip Port Scan": {
-      "main": [
-        [
-          {
-            "node": "Web Scan?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Web Scan?": {
-      "main": [
-        [
-          {
-            "node": "Fetch & Crawl",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Skip Web Scan",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch & Crawl": {
-      "main": [
-        [
-          {
-            "node": "Build Component Scan Command",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Skip Web Scan": {
-      "main": [
-        [
-          {
-            "node": "Build Component Scan Command",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Report Data": {
-      "main": [
-        [
-          {
-            "node": "Build Deterministic Report Sections",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ollama Chat Model": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Analyze & Plan Next Phase",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Report File": {
-      "main": [
-        [
-          {
-            "node": "Convert Report to File",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Convert Report to File": {
-      "main": [
-        [
-          {
-            "node": "Persist Report",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Analyze & Plan Next Phase": {
-      "main": [
-        [
-          {
-            "node": "Build Report File",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Settle Before LLM Call": {
-      "main": [
-        [
-          {
-            "node": "Analyze & Plan Next Phase",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Component Scan Command": {
-      "main": [
-        [
-          {
-            "node": "Run Component Scan",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Run Component Scan": {
-      "main": [
-        [
-          {
-            "node": "Parse Component Findings",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Component Findings": {
-      "main": [
-        [
-          {
-            "node": "Escalation Reasoning",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "SQL Injection Test?": {
-      "main": [
-        [
-          {
-            "node": "Dispatch SQLi Test",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Skip SQLMap",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Skip SQLMap": {
-      "main": [
-        [
-          {
-            "node": "Web Vuln Scan?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Web Vuln Scan?": {
-      "main": [
-        [
-          {
-            "node": "Dispatch Web Vuln Scan",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Skip ZAP",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Skip ZAP": {
-      "main": [
-        [
-          {
-            "node": "Build Report Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Deterministic Report Sections": {
-      "main": [
-        [
-          {
-            "node": "Analyze & Plan Next Phase",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Dispatch SQLi Test": {
-      "main": [
-        [
-          {
-            "node": "Merge SQLMap Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge SQLMap Result": {
-      "main": [
-        [
-          {
-            "node": "Web Vuln Scan?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Dispatch Web Vuln Scan": {
-      "main": [
-        [
-          {
-            "node": "Merge ZAP Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge ZAP Result": {
-      "main": [
-        [
-          {
-            "node": "Build Report Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ollama Chat Model (Reasoning)": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Escalation Reasoning",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Escalation Reasoning": {
-      "main": [
-        [
-          {
-            "node": "Capture Escalation Reasoning",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Capture Escalation Reasoning": {
-      "main": [
-        [
-          {
-            "node": "SQL Injection Test?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
-  "settings": {
-    "executionOrder": "v1",
-    "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
-  },
-  "staticData": null,
-  "meta": null,
-  "pinData": {},
-  "versionId": "0a71c89a-6d6b-4ca4-82c0-fe09509ed343",
-  "activeVersionId": "0a71c89a-6d6b-4ca4-82c0-fe09509ed343",
-  "versionCounter": 51,
-  "triggerCount": 1,
-  "shared": [
-    {
-      "updatedAt": "2026-08-23T11:42:19.813Z",
-      "createdAt": "2026-08-23T11:42:19.813Z",
-      "role": "workflow:owner",
-      "workflowId": "uPsBOR11c3kxhNWV",
-      "projectId": "Jg4uS5KGYOhglknu",
-      "project": {
-        "updatedAt": "2026-08-22T10:40:41.556Z",
-        "createdAt": "2026-08-22T10:39:49.139Z",
-        "id": "Jg4uS5KGYOhglknu",
-        "name": "cjeggo <cjeggo@proton.me>",
-        "type": "personal",
-        "icon": null,
-        "description": null,
-        "creatorId": "5681b20b-33b2-405a-92c1-7784c68344c0"
+   "Recon Target": {
+    "main": [
+     [
+      {
+       "node": "Validate & Normalize",
+       "type": "main",
+       "index": 0
       }
-    }
-  ],
-  "tags": [],
-  "activeVersion": {
-    "updatedAt": "2026-08-23T15:03:35.474Z",
-    "createdAt": "2026-08-23T15:03:35.474Z",
-    "versionId": "0a71c89a-6d6b-4ca4-82c0-fe09509ed343",
-    "workflowId": "uPsBOR11c3kxhNWV",
-    "nodes": [
-      {
-        "parameters": {
-          "formTitle": "Recon / Attack-Surface Scan",
-          "formDescription": "Authorized recon scan of a domain or IP.",
-          "formFields": {
-            "values": [
-              {
-                "fieldLabel": "target",
-                "placeholder": "example.com or 1.2.3.4",
-                "requiredField": true
-              },
-              {
-                "fieldLabel": "authorized",
-                "fieldType": "checkbox",
-                "fieldOptions": {
-                  "values": [
-                    {}
-                  ]
-                },
-                "requiredField": true
-              },
-              {
-                "fieldLabel": "scanIntensity",
-                "fieldType": "dropdown",
-                "fieldOptions": {
-                  "values": [
-                    {
-                      "option": "dns-only"
-                    },
-                    {
-                      "option": "dns+ports"
-                    },
-                    {
-                      "option": "dns+ports+web"
-                    }
-                  ]
-                },
-                "requiredField": true
-              },
-              {
-                "fieldLabel": "sqlInjectionTest",
-                "fieldType": "checkbox",
-                "fieldOptions": {
-                  "values": [
-                    {}
-                  ]
-                }
-              },
-              {
-                "fieldLabel": "webVulnScan",
-                "fieldType": "checkbox",
-                "fieldOptions": {
-                  "values": [
-                    {}
-                  ]
-                }
-              }
-            ]
-          },
-          "options": {}
-        },
-        "id": "e8c92345-d7ee-411d-84c9-8e27e51dc8d1",
-        "name": "Recon Target",
-        "type": "n8n-nodes-base.formTrigger",
-        "typeVersion": 2.2,
-        "position": [
-          0,
-          432
-        ],
-        "webhookId": "0715503a-1d26-4141-9543-08e6e245f1ae"
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst raw = (($json.target) || '').trim().toLowerCase();\nconst authorized = $json.authorized === true || $json.authorized === 'true';\nconst hostnameRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;\nconst ipv4Re = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\nconst ipv6Re = /^[0-9a-f:]+$/i;\nconst isIp = ipv4Re.test(raw) || (raw.includes(':') && ipv6Re.test(raw));\nconst valid = raw.length > 0 && raw.length < 254 && (isIp || hostnameRe.test(raw));\nconst blocked = !authorized ? 'authorization checkbox not confirmed' : (!valid ? 'target failed validation' : null);\nreturn [{ json: { target: raw, isIp, scanIntensity: $json.scanIntensity || 'dns-only', blocked } }];\n"
-        },
-        "id": "d4bef2d9-0c60-4703-a86c-16de515c129b",
-        "name": "Validate & Normalize",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          224,
-          432
-        ]
-      },
-      {
-        "parameters": {
-          "conditions": {
-            "options": {
-              "caseSensitive": true,
-              "leftValue": "",
-              "typeValidation": "strict"
-            },
-            "combinator": "and",
-            "conditions": [
-              {
-                "id": "380105df-5805-4814-af0c-e8e86d0fc53b",
-                "leftValue": "={{ $json.blocked }}",
-                "rightValue": "",
-                "operator": {
-                  "type": "string",
-                  "operation": "empty",
-                  "singleValue": true
-                }
-              }
-            ]
-          },
-          "options": {}
-        },
-        "id": "d442f825-cb10-4cde-ae1c-51a34b6dbe06",
-        "name": "Proceed?",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2,
-        "position": [
-          448,
-          432
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "return [{ json: { status: 'blocked', reason: $json.blocked } }];"
-        },
-        "id": "db02a343-36ac-4f9a-8972-b0a0f5ea14db",
-        "name": "Blocked",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          672,
-          528
-        ]
-      },
-      {
-        "parameters": {
-          "command": "=echo \"A:\"; dig +short {{$json.target}} A; echo \"AAAA:\"; dig +short {{$json.target}} AAAA; echo \"MX:\"; dig +short {{$json.target}} MX; echo \"NS:\"; dig +short {{$json.target}} NS; echo \"TXT:\"; dig +short {{$json.target}} TXT; echo \"SOA:\"; dig +short {{$json.target}} SOA"
-        },
-        "id": "667148a3-18b7-43ae-99a9-5e6790b87154",
-        "name": "DNS Records",
-        "type": "n8n-nodes-base.executeCommand",
-        "typeVersion": 1,
-        "position": [
-          672,
-          336
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst target = $('Validate & Normalize').item.json.target;\nconst lines = ($json.stdout || '').split('\\n');\nconst records = { A: [], AAAA: [], MX: [], NS: [], TXT: [], SOA: [] };\nlet section = null;\nfor (const line of lines) {\n  const t = line.trim();\n  if (!t) continue;\n  const marker = t.match(/^(A|AAAA|MX|NS|TXT|SOA):$/);\n  if (marker) { section = marker[1]; continue; }\n  if (section && records[section]) records[section].push(t);\n}\nreturn [{ json: { target, records } }];\n"
-        },
-        "id": "67e3a9c4-8816-47bd-9756-c270561bb3c2",
-        "name": "Parse DNS",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          896,
-          336
-        ]
-      },
-      {
-        "parameters": {
-          "url": "=https://crt.sh/?q=%25.{{ $('Validate & Normalize').item.json.target }}&output=json",
-          "options": {
-            "timeout": 15000
-          }
-        },
-        "id": "1aa7014c-1da1-45a1-92d3-ea8de16b0173",
-        "name": "crt.sh Subdomains",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
-        "position": [
-          1120,
-          240
-        ],
-        "onError": "continueRegularOutput"
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst dnsInfo = $('Parse DNS').item.json;\nconst norm = $('Validate & Normalize').item.json;\nlet subdomains = [];\ntry {\n  const body = $json.body !== undefined ? $json.body : $json;\n  const arr = Array.isArray(body) ? body : [];\n  const set = new Set();\n  for (const entry of arr) {\n    if (entry && entry.name_value) {\n      entry.name_value.split('\\n').forEach(n => set.add(n.trim().toLowerCase()));\n    }\n  }\n  subdomains = Array.from(set);\n} catch (e) { subdomains = []; }\n\nlet whoisText = '';\ntry { whoisText = $('WHOIS Lookup').item.json.stdout || ''; } catch (e) { whoisText = ''; }\nconst whoisFields = {};\nfor (const line of whoisText.split('\\n')) {\n  const m = line.match(/^\\s*(Registrar|Registrant Organization|Creation Date|Registry Expiry Date|Name Server|Updated Date)\\s*:\\s*(.+)$/i);\n  if (m) {\n    const key = m[1].trim();\n    whoisFields[key] = whoisFields[key] ? [].concat(whoisFields[key], m[2].trim()) : m[2].trim();\n  }\n}\n\nconst resolvedIp = norm.isIp ? norm.target : ((dnsInfo.records.A && dnsInfo.records.A[0]) || null);\n\nconst attckCoverage = [\n  { technique: 'T1590.002', name: 'Gather Victim Network Information: DNS', status: 'executed' },\n  { technique: 'T1596.003', name: 'Search Open Technical Databases: Digital Certificates', status: subdomains.length || !norm.isIp ? 'executed' : 'skipped (IP target, no hostname to query)' },\n  { technique: 'T1596.002', name: 'Search Open Technical Databases: WHOIS', status: whoisText ? 'executed' : 'no data returned' },\n];\n\nreturn [{ json: {\n  target: norm.target, isIp: norm.isIp, scanIntensity: norm.scanIntensity,\n  dns: dnsInfo.records, subdomains, whois: whoisFields, resolvedIp, attckCoverage\n} }];\n"
-        },
-        "id": "a1297f53-00fb-4f14-9e2c-8b7c45b28fee",
-        "name": "Merge DNS + Subdomains",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          1344,
-          240
-        ]
-      },
-      {
-        "parameters": {
-          "conditions": {
-            "options": {
-              "caseSensitive": true,
-              "leftValue": "",
-              "typeValidation": "loose"
-            },
-            "combinator": "and",
-            "conditions": [
-              {
-                "id": "b935abbb-4169-4113-bbe0-b9a5f4eb4553",
-                "leftValue": "={{ $json.scanIntensity }}",
-                "rightValue": "dns-only",
-                "operator": {
-                  "type": "string",
-                  "operation": "notEquals"
-                }
-              },
-              {
-                "id": "96fb1f40-2bae-4a90-9552-bd6ad4243b62",
-                "leftValue": "={{ $json.resolvedIp }}",
-                "rightValue": "",
-                "operator": {
-                  "type": "string",
-                  "operation": "notEmpty",
-                  "singleValue": true
-                }
-              }
-            ]
-          },
-          "options": {}
-        },
-        "id": "4352c6b3-7c35-4d77-93e5-f0a372e00684",
-        "name": "Port Scan?",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2,
-        "position": [
-          1568,
-          240
-        ]
-      },
-      {
-        "parameters": {
-          "command": "=timeout 120 nmap -sT -Pn -T3 --max-parallelism 5 --top-ports 100 -oX - {{$json.resolvedIp}}"
-        },
-        "id": "2c576ccd-9ff8-4a2c-a7b6-fb8a4452b396",
-        "name": "Nmap Top Ports",
-        "type": "n8n-nodes-base.executeCommand",
-        "typeVersion": 1,
-        "position": [
-          1792,
-          144
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst ctx = $('Merge DNS + Subdomains').item.json;\nconst xml = $json.stdout || '';\nconst ports = [];\nconst re = /<port protocol=\"(\\w+)\" portid=\"(\\d+)\">[\\s\\S]*?<state state=\"(\\w+)\"[^>]*\\/>(?:[\\s\\S]*?<service name=\"([^\"]*)\"[^>]*\\/>)?[\\s\\S]*?<\\/port>/g;\nlet mm;\nwhile ((mm = re.exec(xml)) !== null) {\n  if (mm[3] === 'open') ports.push({ port: Number(mm[2]), protocol: mm[1], service: mm[4] || 'unknown' });\n}\nconst coverage = [...ctx.attckCoverage, { technique: 'T1595.001/.002', name: 'Active Scanning: Scanning IP Blocks / Vulnerability Scanning', status: 'executed' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, portScan: { skipped: false, openPorts: ports } } }];\n"
-        },
-        "id": "22f5ce68-4479-4aa7-b90e-3f1299c0e8a0",
-        "name": "Parse Nmap",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          2016,
-          144
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst ctx = $('Merge DNS + Subdomains').item.json;\nconst coverage = [...ctx.attckCoverage, { technique: 'T1595.001/.002', name: 'Active Scanning: Scanning IP Blocks / Vulnerability Scanning', status: 'skipped (scanIntensity=dns-only or no resolvable IP)' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, portScan: { skipped: true, reason: 'scanIntensity=dns-only or no resolvable IP' } } }];\n"
-        },
-        "id": "cb07aa3e-d5ff-4cb0-b2f9-56f774f0f729",
-        "name": "Skip Port Scan",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          2016,
-          336
-        ]
-      },
-      {
-        "parameters": {
-          "conditions": {
-            "options": {
-              "caseSensitive": true,
-              "leftValue": "",
-              "typeValidation": "strict"
-            },
-            "combinator": "and",
-            "conditions": [
-              {
-                "id": "1412618a-9890-4fc5-972d-29a8a079e2c5",
-                "leftValue": "={{ $json.scanIntensity }}",
-                "rightValue": "dns+ports+web",
-                "operator": {
-                  "type": "string",
-                  "operation": "equals"
-                }
-              }
-            ]
-          },
-          "options": {}
-        },
-        "id": "f52d9f95-cca8-4e99-bacc-d9b8a6d770bc",
-        "name": "Web Scan?",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2,
-        "position": [
-          2240,
-          240
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst ctx = $json;\nconst target = ctx.target;\nconst maxPages = 10;\nconst maxDepth = 2;\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nconst politeDelay = () => sleep(400 + Math.floor(Math.random() * 500));\nconst visited = new Set();\nconst fetchUrl = async (url) => {\n  try {\n    await politeDelay();\n    return await this.helpers.httpRequest({ method: 'GET', url, timeout: 10000, returnFullResponse: true, ignoreHttpStatusErrors: true });\n  } catch (e) { return null; }\n};\n\nconst getOrigin = (u) => u.endsWith('/') ? u.slice(0, -1) : u;\nconst resolveHref = (href, baseUrl, origin) => {\n  if (/^https?:\\/\\//i.test(href)) return href;\n  if (href.startsWith('//')) return (origin.startsWith('https') ? 'https:' : 'http:') + href;\n  if (href.startsWith('/')) return origin + href;\n  const baseDir = baseUrl.slice(0, baseUrl.lastIndexOf('/') + 1);\n  return baseDir + href;\n};\n\nconst openPorts = (ctx.portScan && !ctx.portScan.skipped) ? ctx.portScan.openPorts.map(p => p.port) : [];\nconst candidateUrls = [];\nif (openPorts.includes(443)) candidateUrls.push(`https://${target}/`);\nif (openPorts.includes(80)) candidateUrls.push(`http://${target}/`);\nfor (const p of openPorts) {\n  if (p !== 80 && p !== 443) candidateUrls.push(`http://${target}:${p}/`);\n}\n\nlet startUrl = null, homepage = null;\nif (candidateUrls.length === 0) {\n  const coverage = [...ctx.attckCoverage, { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'no open ports discovered to attempt a web scan against' }];\n  return [{ json: { ...ctx, attckCoverage: coverage, webScan: { skipped: false, reachable: false, reason: 'no open ports from port scan' } } }];\n}\nfor (const url of candidateUrls) {\n  homepage = await fetchUrl(url);\n  if (homepage) { startUrl = url; break; }\n}\nif (!homepage) {\n  const coverage = [...ctx.attckCoverage, { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'attempted, target unreachable' }];\n  return [{ json: { ...ctx, attckCoverage: coverage, webScan: { skipped: false, reachable: false, portsTried: candidateUrls } } }];\n}\nconst origin = getOrigin(startUrl);\n\nconst SECURITY_HEADERS = [\n  'strict-transport-security', 'content-security-policy', 'x-frame-options',\n  'x-content-type-options', 'referrer-policy', 'permissions-policy',\n];\nconst auditHeaders = (headers) => {\n  const present = {}, missing = [];\n  for (const h of SECURITY_HEADERS) {\n    if (headers[h]) present[h] = headers[h];\n    else missing.push(h);\n  }\n  return { present, missing };\n};\n\nconst auditCookies = (headers) => {\n  let raw = headers['set-cookie'];\n  if (!raw) return [];\n  if (!Array.isArray(raw)) raw = [raw];\n  return raw.map((c) => {\n    const name = c.split('=')[0];\n    return {\n      name,\n      secure: /;\\s*Secure/i.test(c),\n      httpOnly: /;\\s*HttpOnly/i.test(c),\n      sameSite: (c.match(/;\\s*SameSite=(\\w+)/i) || [])[1] || 'not set',\n    };\n  });\n};\n\nconst extractForms = (body, pageUrl) => {\n  const forms = [];\n  const formRe = /<form\\b([^>]*)>([\\s\\S]*?)<\\/form>/gi;\n  let fm;\n  while ((fm = formRe.exec(body)) !== null) {\n    const attrs = fm[1];\n    const action = (attrs.match(/action=[\"']([^\"']*)[\"']/i) || [])[1] || pageUrl;\n    const method = ((attrs.match(/method=[\"']([^\"']*)[\"']/i) || [])[1] || 'GET').toUpperCase();\n    const inputs = [];\n    const inputRe = /<input\\b[^>]*name=[\"']([^\"']+)[\"'][^>]*>/gi;\n    let im;\n    while ((im = inputRe.exec(fm[2])) !== null) inputs.push(im[1]);\n    if (inputs.length) forms.push({ page: pageUrl, action, method, fields: inputs });\n  }\n  return forms;\n};\n\nconst headers = homepage.headers || {};\nconst homepageBody = typeof homepage.body === 'string' ? homepage.body : '';\nconst securityHeaders = auditHeaders(headers);\nconst cookies = auditCookies(headers);\nlet forms = extractForms(homepageBody, startUrl);\n\n// --- JS/CSS asset discovery + bundle analysis ---\n// Modern SPAs (Angular/React/Vue) don't expose their real attack surface via\n// server-rendered HTML - the actual routes and REST/API paths only exist as\n// strings inside the compiled JS bundle. A static path wordlist alone will\n// never find these. Fetch the referenced JS assets and pull real path\n// fragments out of them instead of guessing.\nconst assetRe = /(?:src|href)=[\"']([^\"']+\\.(?:js|css))[\"']/gi;\nconst assetPaths = new Set();\nlet am;\nwhile ((am = assetRe.exec(homepageBody)) !== null) assetPaths.add(am[1]);\nconst jsAssetUrls = Array.from(assetPaths)\n  .filter((a) => a.endsWith('.js'))\n  .map((a) => resolveHref(a, startUrl, origin))\n  .filter((u) => u.startsWith(origin));\n\nlet bundleEvidence = [], discoveredApiPaths = [];\nfor (const assetUrl of jsAssetUrls.slice(0, 6)) {\n  const res = await fetchUrl(assetUrl);\n  if (!res || typeof res.body !== 'string') continue;\n  const body = res.body;\n  const pathRe = /\\/(?:rest|api)\\/[a-zA-Z0-9_\\-\\/]+/g;\n  const hits = new Set();\n  let pm;\n  while ((pm = pathRe.exec(body)) !== null) hits.add(pm[0].replace(/\\/$/, ''));\n  for (const h of hits) discoveredApiPaths.push(h);\n  const generator = body.match(/<meta\\s+name=[\"']generator[\"']\\s+content=[\"']([^\"']+)[\"']/i);\n  if (generator) bundleEvidence.push(`meta generator tag: \"${generator[1]}\"`);\n}\ndiscoveredApiPaths = Array.from(new Set(discoveredApiPaths)).slice(0, 40);\n\nconst comments = homepageBody.match(/<!--[\\s\\S]{0,200}?-->/g) || [];\nfor (const c of comments.slice(0, 5)) {\n  const text = c.replace(/<!--|-->/g, '').trim();\n  if (text) bundleEvidence.push(`HTML comment: \"${text.slice(0, 150)}\"`);\n}\nfor (const a of Array.from(assetPaths).slice(0, 30)) bundleEvidence.push(`asset reference: ${a}`);\nconst fingerprint = {\n  assetCount: assetPaths.size,\n  evidenceStrings: bundleEvidence,\n  jsAssetUrls,\n};\n\n// --- Baselined content discovery: static wordlist + real endpoints pulled\n// from the JS bundle, so discovery isn't limited to guessed common paths. ---\nconst COMMON_PATHS = [\n  '/robots.txt', '/sitemap.xml', '/.well-known/security.txt', '/.git/HEAD',\n  '/.env', '/admin', '/api', '/graphql', '/swagger.json', '/swagger-ui.html',\n  '/package.json', '/server-status', '/.htaccess', '/actuator/health', '/login',\n];\nconst probePaths = Array.from(new Set([...COMMON_PATHS, ...discoveredApiPaths]));\n\nconst simpleHash = (s) => { let h = 0; for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) | 0; } return h; };\nconst baselinePath = `/__recon_baseline_${Date.now()}_${Math.floor(Math.random() * 1e6)}__`;\nconst baselineRes = await fetchUrl(`${origin}${baselinePath}`);\nconst baseline = baselineRes ? {\n  status: baselineRes.statusCode,\n  length: (typeof baselineRes.body === 'string' ? baselineRes.body.length : 0),\n  hash: simpleHash(typeof baselineRes.body === 'string' ? baselineRes.body : ''),\n} : null;\n\nconst pathResults = [];\nfor (const p of probePaths) {\n  const res = await fetchUrl(`${origin}${p}`);\n  if (!res) continue;\n  const body = typeof res.body === 'string' ? res.body : '';\n  const signature = { status: res.statusCode, length: body.length, hash: simpleHash(body) };\n  const matchesBaseline = baseline && signature.status === baseline.status &&\n    signature.length === baseline.length && signature.hash === baseline.hash;\n  pathResults.push({\n    path: p,\n    status: res.statusCode,\n    distinctFromBaseline: !matchesBaseline,\n    fromJsBundle: discoveredApiPaths.includes(p),\n  });\n}\n\nconst queue = [{ url: startUrl, depth: 1 }];\nconst pages = [];\nwhile (queue.length && pages.length < maxPages) {\n  const { url, depth } = queue.shift();\n  if (visited.has(url)) continue;\n  visited.add(url);\n  const res = await fetchUrl(url);\n  if (!res) continue;\n  const body = typeof res.body === 'string' ? res.body : '';\n  const titleMatch = body.match(/<title[^>]*>([^<]*)<\\/title>/i);\n  pages.push({ url, status: res.statusCode, title: titleMatch ? titleMatch[1].trim() : null });\n  if (url !== startUrl) forms = forms.concat(extractForms(body, url));\n  if (depth < maxDepth) {\n    const hrefRe = /href=[\"']([^\"'#]+)[\"']/gi;\n    let hm;\n    while ((hm = hrefRe.exec(body)) !== null) {\n      try {\n        const abs = resolveHref(hm[1], url, origin);\n        if (abs.startsWith(origin) && !visited.has(abs) && (queue.length + pages.length) < maxPages) {\n          queue.push({ url: abs, depth: depth + 1 });\n        }\n      } catch (e) {}\n    }\n  }\n}\nlet robotsStatus = null, sitemapStatus = null;\nconst robotsRes = pathResults.find((r) => r.path === '/robots.txt');\nif (robotsRes) robotsStatus = robotsRes.status;\nconst sitemapRes = pathResults.find((r) => r.path === '/sitemap.xml');\nif (sitemapRes) sitemapStatus = sitemapRes.status;\n\nconst coverage = [...ctx.attckCoverage, { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'executed' }];\nreturn [{ json: { ...ctx, attckCoverage: coverage, webScan: {\n  skipped: false, reachable: true, origin,\n  headers,\n  securityHeaders,\n  cookies,\n  fingerprint,\n  discoveredApiPaths,\n  forms,\n  contentDiscovery: pathResults,\n  robotsTxtStatus: robotsStatus, sitemapXmlStatus: sitemapStatus,\n  pagesCrawled: pages.length, pages\n} } }];\n"
-        },
-        "id": "bbfa26c1-19fb-4c51-93a5-de8ca0d5f40c",
-        "name": "Fetch & Crawl",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          2464,
-          144
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst coverage = [...($json.attckCoverage || []), { technique: 'T1594', name: 'Search Victim-Owned Websites', status: 'skipped (scanIntensity != dns+ports+web)' }];\nreturn [{ json: { ...$json, attckCoverage: coverage, webScan: { skipped: true, reason: 'scanIntensity != dns+ports+web' } } }];\n"
-        },
-        "id": "0579d9e9-1bda-40e2-99e4-9dc70c025b5e",
-        "name": "Skip Web Scan",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          2464,
-          336
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst data = $json;\nconst now = new Date();\nconst pad = n => String(n).padStart(2, '0');\nconst ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;\n\n// Trim the payload that goes to the LLM - drop redundant/verbose fields so\n// the prompt stays small enough for the model to reliably follow the\n// requested report structure instead of drowning in raw data.\nlet promptWebScan = null;\nif (data.webScan) {\n  const ws = data.webScan;\n  promptWebScan = {\n    reachable: ws.reachable,\n    reason: ws.reason,\n    origin: ws.origin,\n    securityHeaders: ws.securityHeaders,\n    cookies: ws.cookies,\n    fingerprint: ws.fingerprint ? {\n      assetCount: ws.fingerprint.assetCount,\n      evidenceStrings: ws.fingerprint.evidenceStrings,\n    } : undefined,\n    forms: ws.forms,\n    contentDiscovery: (ws.contentDiscovery || []).filter(r => r.distinctFromBaseline),\n    contentDiscoveryCheckedCount: (ws.contentDiscovery || []).length,\n    pagesCrawledCount: ws.pagesCrawled,\n    robotsTxtStatus: ws.robotsTxtStatus,\n    sitemapXmlStatus: ws.sitemapXmlStatus,\n  };\n}\n\nconst promptData = {\n  target: data.target, isIp: data.isIp, scanIntensity: data.scanIntensity,\n  dns: data.dns, subdomains: data.subdomains, whois: data.whois, resolvedIp: data.resolvedIp,\n  attckCoverage: data.attckCoverage, portScan: data.portScan,\n  webScan: promptWebScan,\n  componentFindings: data.componentFindings,\n  sqlmapScan: data.sqlmapScan,\n  zapScan: data.zapScan,\n};\n\nreturn [{ json: { ...data, reportTimestamp: ts, reportFilename: `${data.target}-${ts}.md`, promptData } }];\n"
-        },
-        "id": "aade419a-b04c-4f65-bc0c-8f4e77f917b7",
-        "name": "Build Report Data",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          4704,
-          240
-        ]
-      },
-      {
-        "parameters": {
-          "model": "qwen3:8b",
-          "options": {}
-        },
-        "id": "08afb225-c9aa-45ce-a70f-f4128f287f8c",
-        "name": "Ollama Chat Model",
-        "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-        "typeVersion": 1,
-        "position": [
-          5224,
-          560
-        ],
-        "credentials": {
-          "ollamaApi": {
-            "id": "vn8oUyNpCDytyAai",
-            "name": "Recon Platform Ollama (IP)"
-          }
-        }
-      },
-      {
-        "parameters": {
-          "promptType": "define",
-          "text": "=FORMAT: your response must begin IMMEDIATELY with \"## 6. If I Were Attacking This\" - no preamble, no restating the task, no thinking out loud. Sections 1-5 and 8 of this report are already written (deterministically, from the raw scan data) and shown to you below for context only - do NOT regenerate them, do NOT repeat their content, only write sections 6 and 7.\n\nYou are writing the attack-planning portion of an authorized recon report on {{$json.target}}. No phishing/social engineering (T1566, T1598, T1589, T1591) - infrastructure/technical only.\n\nAlready-established findings (sections 1-5, 8 of the final report):\n{{$json.sections1to5}}\n\nWrite exactly these two sections:\n\n## 6. If I Were Attacking This\nFor EVERY confirmed finding above (missing headers, content-discovery hits, vulnerable components, sqlmap results, ZAP alerts, forms) write one first-person line naming the exact tool/command you'd run, e.g. \"`/rest/user/login` was found in the JS bundle, not linked anywhere - I'd `sqlmap -u <url> --data 'email=x&password=y' --batch --level=1 --risk=1` against it directly\" or \"ZAP flagged CORS misconfiguration on /ftp/ with Access-Control-Allow-Origin: * - I'd check what's actually in that directory next since it's browsable cross-origin.\" Never invent a finding that isn't listed above. If a category above says nothing was found, write one line saying there's nothing to attack there yet, don't skip it silently.\n\n## 7. ATT&CK-Aligned Next-Phase Plan\nTie section 6's actions to the three ATT&CK tactics that follow reconnaissance - every target named must come from section 6, not a new one:\n   a. Resource Development (TA0042) - what to stage (wordlist, PoC page, cloned repo, etc).\n   b. Initial Access (TA0001), non-human-targeting only - the actual entry-point attempt.\n   c. Execution (TA0002) - what follows once that entry point succeeds.\n",
-          "batching": {}
-        },
-        "id": "633190ce-4ec3-462e-a37b-ad3d016bf3e3",
-        "name": "Analyze & Plan Next Phase",
-        "type": "@n8n/n8n-nodes-langchain.chainLlm",
-        "typeVersion": 1.7,
-        "position": [
-          5152,
-          336
-        ],
-        "retryOnFail": true,
-        "maxTries": 3,
-        "waitBetweenTries": 5000
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst ctx = $('Build Deterministic Report Sections').item.json;\nlet attackPlan = $json.text || $json.output || '';\nattackPlan = attackPlan.replace(/^[\\s\\S]*?<\\/think>\\s*/i, '');\nconst headingMatch = attackPlan.match(/^#{1,3}\\s+\\S.*$/m);\nif (headingMatch) {\n  attackPlan = attackPlan.slice(attackPlan.indexOf(headingMatch[0]));\n}\nattackPlan = attackPlan.trim();\nif (!attackPlan) {\n  attackPlan = '## 6. If I Were Attacking This\\n\\n(Ollama did not return usable output for this section.)\\n\\n## 7. ATT&CK-Aligned Next-Phase Plan\\n\\n(Not generated.)';\n}\n\nconst header = `# Recon Report: ${ctx.target}\\n\\n- Timestamp: ${ctx.reportTimestamp}\\n- Scan intensity: ${ctx.scanIntensity}\\n\\n---\\n\\n# ${ctx.target} Reconnaissance Report\\n\\n`;\nconst reportContent = header + ctx.sections1to5 + '\\n' + attackPlan + '\\n\\n' + ctx.section8 + '\\n';\nreturn [{ json: { ...ctx, reportContent } }];\n"
-        },
-        "id": "c75d7fc2-366a-4512-92ae-039262e85b57",
-        "name": "Build Report File",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          5504,
-          336
-        ]
-      },
-      {
-        "parameters": {
-          "operation": "toText",
-          "sourceProperty": "reportContent",
-          "options": {
-            "fileName": "={{$json.reportFilename}}"
-          }
-        },
-        "id": "09d85f59-d28b-4bac-860e-68a4daaf76bc",
-        "name": "Convert Report to File",
-        "type": "n8n-nodes-base.convertToFile",
-        "typeVersion": 1.1,
-        "position": [
-          5728,
-          336
-        ]
-      },
-      {
-        "parameters": {
-          "operation": "write",
-          "fileName": "=/data/shared/recon/{{ $('Build Report Data').item.json.reportFilename }}",
-          "options": {}
-        },
-        "id": "d9db70c4-4c33-4890-9ccc-0173806ff1ae",
-        "name": "Persist Report",
-        "type": "n8n-nodes-base.readWriteFile",
-        "typeVersion": 1,
-        "position": [
-          5952,
-          336
-        ]
-      },
-      {
-        "parameters": {
-          "command": "=timeout 20 whois {{ $('Validate & Normalize').item.json.target }} || true"
-        },
-        "id": "77ee6599-c40f-4e42-9530-393b4be527c8",
-        "name": "WHOIS Lookup",
-        "type": "n8n-nodes-base.executeCommand",
-        "typeVersion": 1,
-        "position": [
-          1120,
-          432
-        ]
-      },
-      {
-        "parameters": {},
-        "id": "2c4f8c8b-2cb6-4aa6-a078-2a1f298d6c10",
-        "name": "Settle Before LLM Call",
-        "type": "n8n-nodes-base.wait",
-        "typeVersion": 1.1,
-        "position": [
-          4928,
-          432
-        ],
-        "webhookId": "4cdb2cef-5156-4b0d-a4f0-f040c7347c6b"
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst ctx = $json;\nconst jsUrls = (ctx.webScan && ctx.webScan.fingerprint && ctx.webScan.fingerprint.jsAssetUrls) || [];\nif (jsUrls.length === 0) {\n  return [{ json: { ...ctx, command: 'echo \\'{\"data\":[]}\\'' } }];\n}\nconst dlCmds = jsUrls.map((u, i) => `curl -s -m 15 -o /tmp/retire-assets/asset${i}.js \"${u}\"`).join(' && ');\nconst command = `mkdir -p /tmp/retire-assets && rm -f /tmp/retire-assets/* && ${dlCmds} && retire --path /tmp/retire-assets --outputformat json --exitwith 0 2>/dev/null || echo '{\"data\":[]}'`;\nreturn [{ json: { ...ctx, command } }];\n"
-        },
-        "id": "2ede6381-f158-46c1-8f30-c1237be4f6af",
-        "name": "Build Component Scan Command",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          2688,
-          240
-        ]
-      },
-      {
-        "parameters": {
-          "command": "={{$json.command}}"
-        },
-        "id": "f7dfb7b9-d6f3-4aef-b0ab-bd181f3e6a30",
-        "name": "Run Component Scan",
-        "type": "n8n-nodes-base.executeCommand",
-        "typeVersion": 1,
-        "position": [
-          2912,
-          240
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst ctx = $('Build Component Scan Command').item.json;\nlet componentFindings = [];\ntry {\n  const out = JSON.parse($json.stdout || '{\"data\":[]}');\n  for (const file of (out.data || [])) {\n    for (const res of (file.results || [])) {\n      for (const vuln of (res.vulnerabilities || [])) {\n        componentFindings.push({\n          component: res.component,\n          version: res.version,\n          severity: vuln.severity || 'unknown',\n          summary: (vuln.identifiers && vuln.identifiers.summary) || null,\n          cve: (vuln.identifiers && vuln.identifiers.CVE) || [],\n          info: vuln.info || [],\n        });\n      }\n    }\n  }\n} catch (e) { componentFindings = []; }\nreturn [{ json: { ...ctx, componentFindings } }];\n"
-        },
-        "id": "adf229eb-659e-45ec-bcfd-f6f89f48b72f",
-        "name": "Parse Component Findings",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          3136,
-          240
-        ]
-      },
-      {
-        "parameters": {
-          "conditions": {
-            "options": {
-              "caseSensitive": true,
-              "leftValue": "",
-              "typeValidation": "loose"
-            },
-            "combinator": "and",
-            "conditions": [
-              {
-                "id": "122556ae-762f-4fe2-a41c-8e02839aedf2",
-                "leftValue": "={{ $('Recon Target').item.json.sqlInjectionTest }}",
-                "rightValue": true,
-                "operator": {
-                  "type": "boolean",
-                  "operation": "true",
-                  "singleValue": true
-                }
-              },
-              {
-                "id": "40f32611-cc12-4c2b-9c0e-ca21a1014fe5",
-                "leftValue": "={{ $json.webScan && $json.webScan.reachable }}",
-                "rightValue": true,
-                "operator": {
-                  "type": "boolean",
-                  "operation": "true",
-                  "singleValue": true
-                }
-              }
-            ]
-          },
-          "options": {}
-        },
-        "id": "037da74b-0c38-4d61-bbe6-e60c424a3a26",
-        "name": "SQL Injection Test?",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2,
-        "position": [
-          3360,
-          240
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "\nreturn [{ json: { ...$json, sqlmapScan: { skipped: true, reason: 'toggle off or web target unreachable' } } }];\n"
-        },
-        "id": "759f86ff-e87f-49ed-90c9-4b66e486091d",
-        "name": "Skip SQLMap",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          4032,
-          336
-        ]
-      },
-      {
-        "parameters": {
-          "conditions": {
-            "options": {
-              "caseSensitive": true,
-              "leftValue": "",
-              "typeValidation": "loose"
-            },
-            "combinator": "and",
-            "conditions": [
-              {
-                "id": "ad505ebe-cbc4-4b61-b8bf-13d7d2c6c750",
-                "leftValue": "={{ $('Recon Target').item.json.webVulnScan }}",
-                "rightValue": true,
-                "operator": {
-                  "type": "boolean",
-                  "operation": "true",
-                  "singleValue": true
-                }
-              },
-              {
-                "id": "a8053ca1-8d89-4e9c-ab7f-4902527db22e",
-                "leftValue": "={{ $json.webScan && $json.webScan.reachable }}",
-                "rightValue": true,
-                "operator": {
-                  "type": "boolean",
-                  "operation": "true",
-                  "singleValue": true
-                }
-              }
-            ]
-          },
-          "options": {}
-        },
-        "id": "058379ff-823e-4614-88c6-91ad8a8b2c17",
-        "name": "Web Vuln Scan?",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2,
-        "position": [
-          4256,
-          240
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "\nreturn [{ json: { ...$json, zapScan: { skipped: true, reason: 'toggle off or web target unreachable' } } }];\n"
-        },
-        "id": "23283012-b684-4b01-becf-96f62b4a9aba",
-        "name": "Skip ZAP",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          4480,
-          336
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst ctx = $json;\nconst lines = [];\nconst p = (s='') => lines.push(s);\n\n// --- 1. MITRE ATT&CK Reconnaissance (TA0043) Coverage ---\np('## 1. MITRE ATT&CK Reconnaissance (TA0043) Coverage');\np('');\np('| Technique | Name | Status |');\np('|---|---|---|');\nfor (const c of (ctx.attckCoverage || [])) p(`| ${c.technique} | ${c.name} | ${c.status} |`);\np('');\np('Out of scope: T1589/T1591/T1593.001/T1598 (people/social engineering, explicitly excluded). T1597 (Search Closed Sources) requires paid threat-intel access not available in this platform.');\np('');\n\n// --- 2. Attack Surface Summary ---\np('## 2. Attack Surface Summary');\np('');\np(`- Target: \\`${ctx.target}\\` (resolved IP: \\`${ctx.resolvedIp || 'none'}\\`)`);\np(`- Subdomains discovered: ${(ctx.subdomains || []).length}`);\nconst openPortsList = (ctx.portScan && !ctx.portScan.skipped) ? ctx.portScan.openPorts.map(o => `${o.port}/${o.protocol} (${o.service})`).join(', ') : 'port scan not run';\np(`- Open ports: ${openPortsList || 'none found'}`);\np(`- Web application reachable: ${ctx.webScan ? (ctx.webScan.reachable ? 'yes, at ' + ctx.webScan.origin : 'no') : 'not attempted'}`);\np('');\nif (ctx.escalationRecommendation) { p(`**Local model's escalation read (advisory, not a decision):** ${ctx.escalationRecommendation}`); }\np('');\n\n// --- 3. DNS, WHOIS & Subdomains ---\np('## 3. DNS, WHOIS & Subdomains');\np('');\nconst dns = ctx.dns || {};\nfor (const rt of ['A','AAAA','MX','NS','TXT','SOA']) {\n  const vals = dns[rt] || [];\n  p(`- **${rt}**: ${vals.length ? vals.join(', ') : 'none'}`);\n}\nconst whoisKeys = Object.keys(ctx.whois || {});\np(`- **WHOIS**: ${whoisKeys.length ? whoisKeys.map(k => `${k}: ${ctx.whois[k]}`).join('; ') : 'no data returned'}`);\np(`- **Subdomains**: ${(ctx.subdomains || []).length ? ctx.subdomains.join(', ') : 'none discovered'}`);\np('');\n\n// --- 4. Open Ports & Services ---\np('## 4. Open Ports & Services');\np('');\nif (!ctx.portScan || ctx.portScan.skipped) {\n  p(`Port scan not run (${ctx.portScan ? ctx.portScan.reason : 'scan intensity too low'}).`);\n} else if (!ctx.portScan.openPorts.length) {\n  p('Port scan ran, no open ports found in the scanned range.');\n} else {\n  p('| Port | Protocol | Service (nmap-identified) |');\n  p('|---|---|---|');\n  for (const o of ctx.portScan.openPorts) p(`| ${o.port} | ${o.protocol} | ${o.service} |`);\n}\np('');\n\n// --- 5. Confirmed Findings (Evidence-Backed) ---\np('## 5. Confirmed Findings (Evidence-Backed)');\np('');\nif (ctx.webScan && ctx.webScan.reachable) {\n  const ws = ctx.webScan;\n  p('### Missing Security Headers');\n  if (ws.securityHeaders.missing.length) {\n    for (const h of ws.securityHeaders.missing) p(`- \\`${h}\\`: not set`);\n  } else { p('- None missing - all checked headers present.'); }\n  p('');\n  p('### Cookies');\n  if (ws.cookies.length) {\n    for (const c of ws.cookies) p(`- \\`${c.name}\\`: Secure=${c.secure}, HttpOnly=${c.httpOnly}, SameSite=${c.sameSite}`);\n  } else { p('- No cookies observed.'); }\n  p('');\n  p('### Content Discovery (baselined - soft-404s already excluded)');\n  const hits = (ws.contentDiscovery || []).filter(r => r.distinctFromBaseline);\n  if (hits.length) {\n    p('| Path | Status | Source |');\n    p('|---|---|---|');\n    for (const h of hits) p(`| \\`${h.path}\\` | ${h.status} | ${h.fromJsBundle ? 'discovered in JS bundle (not linked anywhere)' : 'wordlist'} |`);\n  } else { p(`- No genuine hits out of ${(ws.contentDiscovery || []).length} paths checked (all matched the site's baseline/soft-404 response).`); }\n  p('');\n  p('### Technology Fingerprint');\n  if (ws.fingerprint && ws.fingerprint.evidenceStrings.length) {\n    for (const e of ws.fingerprint.evidenceStrings.slice(0, 15)) p(`- ${e}`);\n  } else { p('- No fingerprint evidence collected.'); }\n  p('');\n  p('### Forms / Parameter Surface');\n  if (ws.forms && ws.forms.length) {\n    for (const f of ws.forms) p(`- \\`${f.method} ${f.action}\\` - fields: ${f.fields.join(', ')} (page: ${f.page})`);\n  } else { p('- No server-rendered \\\\<form\\\\> elements found (common for JS-driven SPAs - the real submit targets are the discovered API paths above, not HTML forms).'); }\n  p('');\n} else {\n  p(`Web scan not reachable/not run - ${ctx.webScan ? ctx.webScan.reason : 'no web target'}.`);\n  p('');\n}\n\np('### Vulnerable Components (retire.js against fetched JS bundle)');\nif (ctx.componentFindings && ctx.componentFindings.length) {\n  for (const c of ctx.componentFindings) {\n    p(`- **${c.component} ${c.version}** - severity ${c.severity}${c.cve.length ? ', ' + c.cve.join(', ') : ''}: ${c.summary || 'see info links'}`);\n  }\n} else { p('- retire.js scan ran, no known-vulnerable component versions matched.'); }\np('');\n\np('### SQL Injection Testing (sqlmap)');\nif (!ctx.sqlmapScan || ctx.sqlmapScan.skipped) {\n  p(`- Not run (${ctx.sqlmapScan ? ctx.sqlmapScan.reason : 'toggle off'}).`);\n} else if (ctx.sqlmapScan.vulnerable) {\n  for (const f of ctx.sqlmapScan.findings) p(`- Parameter \\`${f.parameter}\\`: ${f.type || 'injectable'} - ${f.title || ''}`);\n} else { p('- sqlmap ran (`--crawl=2 --forms --level=1 --risk=1`), no injectable parameters found.'); }\np('');\n\np('### Web Vulnerability Scan (OWASP ZAP)');\nif (!ctx.zapScan || ctx.zapScan.skipped) {\n  p(`- Not run (${ctx.zapScan ? ctx.zapScan.reason : 'toggle off'}).`);\n} else if (!ctx.zapScan.reachable) {\n  p(`- Attempted, ZAP unreachable (${ctx.zapScan.reason}).`);\n} else if (ctx.zapScan.alertCount === 0) {\n  p('- ZAP spider + active scan completed, no alerts raised.');\n} else {\n  p(`- ZAP spider complete: ${ctx.zapScan.spiderComplete}, active scan complete: ${ctx.zapScan.activeScanComplete}, ${ctx.zapScan.alertCount} alert(s):`);\n  const byName = {};\n  for (const a of ctx.zapScan.alerts) {\n    byName[a.name] = byName[a.name] || { risk: a.risk, urls: [] };\n    if (byName[a.name].urls.length < 5) byName[a.name].urls.push(a.url);\n  }\n  for (const [name, info] of Object.entries(byName)) {\n    p(`  - **${name}** (${info.risk}): ${info.urls.join(', ')}`);\n  }\n}\np('');\n\n// --- 8. Testing Coverage & Gaps ---\np('## 8. Testing Coverage & Gaps');\np('');\np('| Category | Tested this scan? |');\np('|---|---|');\np(`| DNS/WHOIS/Subdomain enumeration | Yes |`);\np(`| Port scanning | ${ctx.portScan && !ctx.portScan.skipped ? 'Yes' : 'No - scanIntensity below dns+ports'} |`);\np(`| Security headers / cookie flags | ${ctx.webScan && ctx.webScan.reachable ? 'Yes' : 'No - web target unreachable/not scanned'} |`);\np(`| Content discovery (baselined) | ${ctx.webScan && ctx.webScan.reachable ? 'Yes' : 'No'} |`);\np(`| Vulnerable components (retire.js) | ${ctx.componentFindings !== undefined ? 'Yes' : 'No'} |`);\np(`| SQL/NoSQL injection (sqlmap) | ${ctx.sqlmapScan && !ctx.sqlmapScan.skipped ? 'Yes' : 'No - toggle off or web unreachable'} |`);\np(`| XSS / broader web vuln scan (ZAP) | ${ctx.zapScan && !ctx.zapScan.skipped && ctx.zapScan.reachable ? 'Yes' : 'No - toggle off, ZAP not running, or web unreachable'} |`);\np(`| Broken Authentication (rate-limiting, JWT weaknesses, password reset flaws) | No - requires active authenticated testing not performed by this scan |`);\np(`| Broken Access Control / IDOR | No - requires authenticated, session-aware testing |`);\np(`| Broken Anti-Automation | No - requires repeated-request active testing |`);\np(`| Cryptographic Issues (TLS/cipher grade) | No - not implemented in this scan |`);\np(`| XML External Entities (XXE) | No - requires crafted payloads to file-upload endpoints |`);\np(`| Insecure Deserialization | No - requires crafted payload testing |`);\np(`| Insufficient Logging & Monitoring | Not detectable from external recon - requires server-side log access |`);\np('');\n\nconst fullText = lines.join('\\n');\nconst splitIdx = fullText.indexOf('## 8. Testing Coverage & Gaps');\nconst sections1to5 = splitIdx >= 0 ? fullText.slice(0, splitIdx) : fullText;\nconst section8 = splitIdx >= 0 ? fullText.slice(splitIdx) : '';\nreturn [{ json: { ...ctx, sections1to5, section8 } }];\n"
-        },
-        "id": "ac68227e-210e-45fd-9b22-14743380c2e5",
-        "name": "Build Deterministic Report Sections",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          4928,
-          240
-        ]
-      },
-      {
-        "id": "685ba0d6-ce44-43e4-ac0b-f69623df1bc3",
-        "name": "Dispatch SQLi Test",
-        "type": "n8n-nodes-base.executeWorkflow",
-        "typeVersion": 1.2,
-        "position": [
-          3520,
-          140
-        ],
-        "parameters": {
-          "workflowId": {
-            "__rl": true,
-            "value": "cUTQYfv1uHaYAoQE",
-            "mode": "id"
-          },
-          "workflowInputs": {
-            "value": {
-              "target": "={{ $json.target }}",
-              "origin": "={{ $json.webScan.origin }}"
-            }
-          }
-        }
-      },
-      {
-        "id": "33f698d1-7834-4a3c-bdc1-f00a9b5445b2",
-        "name": "Merge SQLMap Result",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          3740,
-          140
-        ],
-        "parameters": {
-          "jsCode": "\nconst ctx = $('Capture Escalation Reasoning').item.json;\nreturn [{ json: { ...ctx, sqlmapScan: $json } }];\n"
-        }
-      },
-      {
-        "id": "7bee9eb6-e8a9-432f-aa31-3d14ad508fdf",
-        "name": "Dispatch Web Vuln Scan",
-        "type": "n8n-nodes-base.executeWorkflow",
-        "typeVersion": 1.2,
-        "position": [
-          4400,
-          140
-        ],
-        "parameters": {
-          "workflowId": {
-            "__rl": true,
-            "value": "FzJKTUzni59sbOgH",
-            "mode": "id"
-          },
-          "workflowInputs": {
-            "value": {
-              "target": "={{ $json.target }}",
-              "origin": "={{ $json.webScan.origin }}"
-            }
-          }
-        }
-      },
-      {
-        "id": "1325b9da-8c04-4415-bfbc-56e30891eb34",
-        "name": "Merge ZAP Result",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          4620,
-          140
-        ],
-        "parameters": {
-          "jsCode": "\nconst ctx = $('Web Vuln Scan?').item.json;\nreturn [{ json: { ...ctx, zapScan: $json } }];\n"
-        }
-      },
-      {
-        "id": "46067c67-4038-4364-bf4d-0a59c6950ff2",
-        "name": "Dispatch SQLi Test",
-        "type": "n8n-nodes-base.executeWorkflow",
-        "typeVersion": 1.2,
-        "position": [
-          3520,
-          140
-        ],
-        "parameters": {
-          "workflowId": {
-            "__rl": true,
-            "value": "cUTQYfv1uHaYAoQE",
-            "mode": "id"
-          },
-          "workflowInputs": {
-            "value": {
-              "target": "={{ $json.target }}",
-              "origin": "={{ $json.webScan.origin }}"
-            }
-          }
-        }
-      },
-      {
-        "id": "6cd62f0e-ea18-4f96-ad62-f5599f39442b",
-        "name": "Merge SQLMap Result",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          3740,
-          140
-        ],
-        "parameters": {
-          "jsCode": "\nconst ctx = $('Capture Escalation Reasoning').item.json;\nreturn [{ json: { ...ctx, sqlmapScan: $json } }];\n"
-        }
-      },
-      {
-        "id": "94aaa98d-65e0-4ad8-8152-d8a9d7fb4a55",
-        "name": "Dispatch Web Vuln Scan",
-        "type": "n8n-nodes-base.executeWorkflow",
-        "typeVersion": 1.2,
-        "position": [
-          4400,
-          140
-        ],
-        "parameters": {
-          "workflowId": {
-            "__rl": true,
-            "value": "FzJKTUzni59sbOgH",
-            "mode": "id"
-          },
-          "workflowInputs": {
-            "value": {
-              "target": "={{ $json.target }}",
-              "origin": "={{ $json.webScan.origin }}"
-            }
-          }
-        }
-      },
-      {
-        "id": "8d95cc34-9135-4766-9277-4bc555485d97",
-        "name": "Merge ZAP Result",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          4620,
-          140
-        ],
-        "parameters": {
-          "jsCode": "\nconst ctx = $('Web Vuln Scan?').item.json;\nreturn [{ json: { ...ctx, zapScan: $json } }];\n"
-        }
-      },
-      {
-        "id": "8bf6abc5-7b6f-4d04-a6f2-86899822c9fe",
-        "name": "Dispatch SQLi Test",
-        "type": "n8n-nodes-base.executeWorkflow",
-        "typeVersion": 1.2,
-        "position": [
-          3520,
-          140
-        ],
-        "parameters": {
-          "workflowId": {
-            "__rl": true,
-            "value": "cUTQYfv1uHaYAoQE",
-            "mode": "id"
-          },
-          "workflowInputs": {
-            "value": {
-              "target": "={{ $json.target }}",
-              "origin": "={{ $json.webScan.origin }}"
-            }
-          }
-        }
-      },
-      {
-        "id": "1b404f19-4946-4682-a998-932dd7e6772c",
-        "name": "Merge SQLMap Result",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          3740,
-          140
-        ],
-        "parameters": {
-          "jsCode": "\nconst ctx = $('Capture Escalation Reasoning').item.json;\nreturn [{ json: { ...ctx, sqlmapScan: $json } }];\n"
-        }
-      },
-      {
-        "id": "5c6870e0-2e05-4485-bc58-8b28d46138fe",
-        "name": "Dispatch Web Vuln Scan",
-        "type": "n8n-nodes-base.executeWorkflow",
-        "typeVersion": 1.2,
-        "position": [
-          4400,
-          140
-        ],
-        "parameters": {
-          "workflowId": {
-            "__rl": true,
-            "value": "FzJKTUzni59sbOgH",
-            "mode": "id"
-          },
-          "workflowInputs": {
-            "value": {
-              "target": "={{ $json.target }}",
-              "origin": "={{ $json.webScan.origin }}"
-            }
-          }
-        }
-      },
-      {
-        "id": "c80dfaca-a27e-4415-90b0-d0ba24122c9c",
-        "name": "Merge ZAP Result",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          4620,
-          140
-        ],
-        "parameters": {
-          "jsCode": "\nconst ctx = $('Web Vuln Scan?').item.json;\nreturn [{ json: { ...ctx, zapScan: $json } }];\n"
-        }
-      },
-      {
-        "id": "779a1eaa-a5a9-418a-99df-4dbe9deb43d3",
-        "name": "Ollama Chat Model (Reasoning)",
-        "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-        "typeVersion": 1,
-        "position": [
-          3300,
-          460
-        ],
-        "parameters": {
-          "model": "qwen3:8b",
-          "options": {}
-        },
-        "credentials": {
-          "ollamaApi": {
-            "id": "3XBbi6hde7mYgJFr",
-            "name": "Recon Platform Ollama"
-          }
-        }
-      },
-      {
-        "id": "8cfeee83-ed87-4c52-9efc-c7d49a7c1a0c",
-        "name": "Escalation Reasoning",
-        "type": "@n8n/n8n-nodes-langchain.chainLlm",
-        "typeVersion": 1.7,
-        "position": [
-          3300,
-          300
-        ],
-        "parameters": {
-          "promptType": "define",
-          "text": "=Answer in 2-4 short sentences, no preamble, no thinking out loud, plain text only. Given this recon data for {{$json.target}} - open ports: {{ JSON.stringify($json.portScan) }}, discovered API/content paths (non-404): {{ JSON.stringify(($json.webScan && $json.webScan.contentDiscovery || []).filter(r => r.distinctFromBaseline)) }}, forms: {{ JSON.stringify($json.webScan && $json.webScan.forms) }} - is deeper active testing (SQL injection testing, a full web vulnerability scan) likely to be worthwhile here, and specifically why or why not based on what was actually found? This is advisory only for a human operator who separately controls whether those scans actually run - don't tell them what to do, just give your read on the evidence.",
-          "options": {}
-        }
-      },
-      {
-        "id": "b0830a14-9252-45f0-b8e9-d62bcfd55235",
-        "name": "Capture Escalation Reasoning",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          3300,
-          140
-        ],
-        "parameters": {
-          "jsCode": "\nconst ctx = $('Parse Component Findings').item.json;\nlet text = $json.text || $json.output || '';\ntext = text.replace(/^[\\s\\S]*?<\\/think>\\s*/i, '').trim();\n// Untagged models ramble then give the real answer as a final block, not\n// always separated by a blank line - split on single newlines too and take\n// the last non-empty chunk as the answer.\nif (text.length > 400) {\n  const chunks = text.split(/\\n+/).map(c => c.trim()).filter(Boolean);\n  if (chunks.length > 1) text = chunks[chunks.length - 1];\n}\nreturn [{ json: { ...ctx, escalationRecommendation: text || '(no recommendation generated)' } }];\n"
-        }
-      }
-    ],
-    "connections": {
-      "Recon Target": {
-        "main": [
-          [
-            {
-              "node": "Validate & Normalize",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Validate & Normalize": {
-        "main": [
-          [
-            {
-              "node": "Proceed?",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Proceed?": {
-        "main": [
-          [
-            {
-              "node": "DNS Records",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Blocked",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "DNS Records": {
-        "main": [
-          [
-            {
-              "node": "Parse DNS",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Parse DNS": {
-        "main": [
-          [
-            {
-              "node": "crt.sh Subdomains",
-              "type": "main",
-              "index": 0
-            },
-            {
-              "node": "WHOIS Lookup",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "crt.sh Subdomains": {
-        "main": [
-          [
-            {
-              "node": "Merge DNS + Subdomains",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Merge DNS + Subdomains": {
-        "main": [
-          [
-            {
-              "node": "Port Scan?",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Port Scan?": {
-        "main": [
-          [
-            {
-              "node": "Nmap Top Ports",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Skip Port Scan",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Nmap Top Ports": {
-        "main": [
-          [
-            {
-              "node": "Parse Nmap",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Parse Nmap": {
-        "main": [
-          [
-            {
-              "node": "Web Scan?",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Skip Port Scan": {
-        "main": [
-          [
-            {
-              "node": "Web Scan?",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Web Scan?": {
-        "main": [
-          [
-            {
-              "node": "Fetch & Crawl",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Skip Web Scan",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Fetch & Crawl": {
-        "main": [
-          [
-            {
-              "node": "Build Component Scan Command",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Skip Web Scan": {
-        "main": [
-          [
-            {
-              "node": "Build Component Scan Command",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Build Report Data": {
-        "main": [
-          [
-            {
-              "node": "Build Deterministic Report Sections",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Ollama Chat Model": {
-        "ai_languageModel": [
-          [
-            {
-              "node": "Analyze & Plan Next Phase",
-              "type": "ai_languageModel",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Build Report File": {
-        "main": [
-          [
-            {
-              "node": "Convert Report to File",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Convert Report to File": {
-        "main": [
-          [
-            {
-              "node": "Persist Report",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Analyze & Plan Next Phase": {
-        "main": [
-          [
-            {
-              "node": "Build Report File",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Settle Before LLM Call": {
-        "main": [
-          [
-            {
-              "node": "Analyze & Plan Next Phase",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Build Component Scan Command": {
-        "main": [
-          [
-            {
-              "node": "Run Component Scan",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Run Component Scan": {
-        "main": [
-          [
-            {
-              "node": "Parse Component Findings",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Parse Component Findings": {
-        "main": [
-          [
-            {
-              "node": "Escalation Reasoning",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "SQL Injection Test?": {
-        "main": [
-          [
-            {
-              "node": "Dispatch SQLi Test",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Skip SQLMap",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Skip SQLMap": {
-        "main": [
-          [
-            {
-              "node": "Web Vuln Scan?",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Web Vuln Scan?": {
-        "main": [
-          [
-            {
-              "node": "Dispatch Web Vuln Scan",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
-              "node": "Skip ZAP",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Skip ZAP": {
-        "main": [
-          [
-            {
-              "node": "Build Report Data",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Build Deterministic Report Sections": {
-        "main": [
-          [
-            {
-              "node": "Analyze & Plan Next Phase",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Dispatch SQLi Test": {
-        "main": [
-          [
-            {
-              "node": "Merge SQLMap Result",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Merge SQLMap Result": {
-        "main": [
-          [
-            {
-              "node": "Web Vuln Scan?",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Dispatch Web Vuln Scan": {
-        "main": [
-          [
-            {
-              "node": "Merge ZAP Result",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Merge ZAP Result": {
-        "main": [
-          [
-            {
-              "node": "Build Report Data",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Ollama Chat Model (Reasoning)": {
-        "ai_languageModel": [
-          [
-            {
-              "node": "Escalation Reasoning",
-              "type": "ai_languageModel",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Escalation Reasoning": {
-        "main": [
-          [
-            {
-              "node": "Capture Escalation Reasoning",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Capture Escalation Reasoning": {
-        "main": [
-          [
-            {
-              "node": "SQL Injection Test?",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      }
-    },
-    "authors": "cjeggo",
-    "name": null,
-    "description": null,
-    "autosaved": false,
-    "workflowPublishHistory": [
-      {
-        "createdAt": "2026-08-23T15:03:35.533Z",
-        "id": 93,
-        "workflowId": "uPsBOR11c3kxhNWV",
-        "versionId": "0a71c89a-6d6b-4ca4-82c0-fe09509ed343",
-        "event": "deactivated",
-        "userId": "5681b20b-33b2-405a-92c1-7784c68344c0"
-      },
-      {
-        "createdAt": "2026-08-23T15:03:35.547Z",
-        "id": 94,
-        "workflowId": "uPsBOR11c3kxhNWV",
-        "versionId": "0a71c89a-6d6b-4ca4-82c0-fe09509ed343",
-        "event": "activated",
-        "userId": "5681b20b-33b2-405a-92c1-7784c68344c0"
-      }
+     ]
     ]
-  }
+   },
+   "Validate & Normalize": {
+    "main": [
+     [
+      {
+       "node": "Proceed?",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Proceed?": {
+    "main": [
+     [
+      {
+       "node": "Is CIDR?",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Blocked",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Is CIDR?": {
+    "main": [
+     [
+      {
+       "node": "Host Discovery",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Dispatch Single Host Recon",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Host Discovery": {
+    "main": [
+     [
+      {
+       "node": "Parse Live Hosts",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Parse Live Hosts": {
+    "main": [
+     [
+      {
+       "node": "Reachable Hosts?",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Dispatch Single Host Recon": {
+    "main": [
+     [
+      {
+       "node": "Build Network Sweep Summary",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build Network Sweep Summary": {
+    "main": [
+     [
+      {
+       "node": "Convert Summary to File",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Convert Summary to File": {
+    "main": [
+     [
+      {
+       "node": "Persist Sweep Summary",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Reachable Hosts?": {
+    "main": [
+     [
+      {
+       "node": "Dispatch Single Host Recon",
+       "type": "main",
+       "index": 0
+      }
+     ],
+     [
+      {
+       "node": "Build Unroutable Notice",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   },
+   "Build Unroutable Notice": {
+    "main": [
+     [
+      {
+       "node": "Convert Summary to File",
+       "type": "main",
+       "index": 0
+      }
+     ]
+    ]
+   }
+  },
+  "authors": "cjeggo",
+  "name": null,
+  "description": null,
+  "autosaved": false,
+  "workflowPublishHistory": [
+   {
+    "createdAt": "2026-08-23T16:20:36.655Z",
+    "id": 17,
+    "workflowId": "RMJAXbF2cVeHL4Rb",
+    "versionId": "5b729ccb-fbf2-42d9-95c8-c641d4e7e8f9",
+    "event": "deactivated",
+    "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
+   },
+   {
+    "createdAt": "2026-08-23T16:20:36.660Z",
+    "id": 18,
+    "workflowId": "RMJAXbF2cVeHL4Rb",
+    "versionId": "5b729ccb-fbf2-42d9-95c8-c641d4e7e8f9",
+    "event": "activated",
+    "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
+   },
+   {
+    "createdAt": "2026-08-23T16:20:36.676Z",
+    "id": 19,
+    "workflowId": "RMJAXbF2cVeHL4Rb",
+    "versionId": "5b729ccb-fbf2-42d9-95c8-c641d4e7e8f9",
+    "event": "deactivated",
+    "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
+   },
+   {
+    "createdAt": "2026-08-23T16:20:36.681Z",
+    "id": 20,
+    "workflowId": "RMJAXbF2cVeHL4Rb",
+    "versionId": "5b729ccb-fbf2-42d9-95c8-c641d4e7e8f9",
+    "event": "activated",
+    "userId": "a5ae19ec-3001-485f-b2e6-8a7f7799d53f"
+   }
+  ]
+ }
 }
