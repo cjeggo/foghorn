@@ -22,3 +22,19 @@ services:
     networks: ['demo']
     ports:
       - 3000:3000
+
+  metasploitable2:
+    image: docker.io/tleemcjr/metasploitable2
+    hostname: metasploitable2
+    container_name: metasploitable2
+    networks: ['demo']
+    # Deliberately no host port mapping - this image runs real vulnerable
+    # services (vsftpd 2.3.4 backdoor, telnet, unpatched Samba, the
+    # ingreslock/1524 root shell) that must stay reachable only from inside
+    # the isolated compose network, never exposed to the host/LAN.
+    #
+    # The image's default entrypoint runs services.sh then drops to an
+    # interactive `bash` - fine for `docker run -it` but exits immediately
+    # with no attached tty, killing the container. Override to keep it
+    # foregrounded after services start.
+    command: sh -c "/bin/services.sh && tail -f /dev/null"
