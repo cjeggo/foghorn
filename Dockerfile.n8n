@@ -4,12 +4,24 @@
 # the recon/fuzzing CLI tools alongside it.
 FROM node:20-alpine
 # recon-ng isn't a pip package - it's a plain git-clone-and-run CLI tool.
-RUN apk add --no-cache bind-tools nmap nmap-scripts whois python3 py3-pip git tini && \
+# gobuster isn't an Alpine package (checked: not in main or community repos)
+# - install the upstream Go binary release directly instead of building from
+# source, same "grab it from its real distribution channel" pattern as sqlmap
+# (pip) and recon-ng (git clone) above. Version pinned for reproducibility.
+# Wordlist: SecLists' common.txt is the de-facto standard content-discovery
+# list (what gobuster's own docs point to) - grabbed as a single file rather
+# than cloning the full SecLists repo (many GB of unrelated wordlists).
+ARG GOBUSTER_VERSION=3.8.2
+RUN apk add --no-cache bind-tools nmap nmap-scripts whois python3 py3-pip git tini curl && \
     pip install --no-cache-dir --break-system-packages sqlmap && \
     git clone --depth 1 https://github.com/lanmaster53/recon-ng.git /opt/recon-ng && \
     pip install --no-cache-dir --break-system-packages -r /opt/recon-ng/REQUIREMENTS && \
     ln -s /opt/recon-ng/recon-cli /usr/local/bin/recon-cli && \
     ln -s /opt/recon-ng/recon-ng /usr/local/bin/recon-ng && \
+    GOBUSTER_ARCH=$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x86_64/') && \
+    curl -sL "https://github.com/OJ/gobuster/releases/download/v${GOBUSTER_VERSION}/gobuster_Linux_${GOBUSTER_ARCH}.tar.gz" | tar -xz -C /usr/local/bin gobuster && \
+    mkdir -p /opt/wordlists && \
+    curl -sL -o /opt/wordlists/common.txt https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt && \
     npm install -g n8n retire
 USER node
 ENTRYPOINT ["tini", "--", "n8n"]

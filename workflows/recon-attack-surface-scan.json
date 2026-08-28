@@ -51,7 +51,9 @@
        "fieldType": "checkbox",
        "fieldOptions": {
         "values": [
-         {}
+         {
+          "option": "Run SQL injection testing (sqlmap) against discovered parameters"
+         }
         ]
        }
       },
@@ -60,7 +62,9 @@
        "fieldType": "checkbox",
        "fieldOptions": {
         "values": [
-         {}
+         {
+          "option": "Run full web vulnerability scan (OWASP ZAP spider + active scan)"
+         }
         ]
        }
       }
@@ -80,7 +84,7 @@
   },
   {
    "parameters": {
-    "jsCode": "\nconst raw = (($json.target) || '').trim().toLowerCase();\nconst authorized = $json.authorized === true || $json.authorized === 'true';\nconst hostnameRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;\nconst ipv4Re = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\nconst ipv6Re = /^[0-9a-f:]+$/i;\nconst cidrRe = /^(\\d{1,3}\\.){3}\\d{1,3}\\/(\\d{1,2})$/;\nconst cidrMatch = raw.match(cidrRe);\nlet isCidr = false, blocked = null;\nif (cidrMatch) {\n  const prefix = Number(cidrMatch[2]);\n  if (!authorized) { blocked = 'authorization checkbox not confirmed'; }\n  else if (prefix < 24) { blocked = `CIDR range too large (/${prefix} - this tool bounds network sweeps to /24 or smaller, max 256 addresses)`; }\n  else { isCidr = true; }\n  return [{ json: { target: raw, isIp: false, isCidr, scanIntensity: $json.scanIntensity || 'dns-only', blocked } }];\n}\nconst isIp = ipv4Re.test(raw) || (raw.includes(':') && ipv6Re.test(raw));\nconst valid = raw.length > 0 && raw.length < 254 && (isIp || hostnameRe.test(raw));\nblocked = !authorized ? 'authorization checkbox not confirmed' : (!valid ? 'target failed validation' : null);\nreturn [{ json: { target: raw, isIp, isCidr: false, scanIntensity: $json.scanIntensity || 'dns-only', blocked } }];\n"
+    "jsCode": "const raw = (($json.target) || '').trim().toLowerCase();\nconst authorized = Array.isArray($json.authorized) && $json.authorized.length > 0;\nconst hostnameRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;\nconst ipv4Re = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\nconst ipv6Re = /^[0-9a-f:]+$/i;\nconst cidrRe = /^(\\d{1,3}\\.){3}\\d{1,3}\\/(\\d{1,2})$/;\nconst cidrMatch = raw.match(cidrRe);\nlet isCidr = false, blocked = null;\nif (cidrMatch) {\n  const prefix = Number(cidrMatch[2]);\n  if (!authorized) { blocked = 'authorization checkbox not confirmed'; }\n  else if (prefix < 24) { blocked = `CIDR range too large (/${prefix} - this tool bounds network sweeps to /24 or smaller, max 256 addresses)`; }\n  else { isCidr = true; }\n  return [{ json: { target: raw, isIp: false, isCidr, scanIntensity: $json.scanIntensity || 'dns-only', sqlInjectionTest: Array.isArray($json.sqlInjectionTest) && $json.sqlInjectionTest.length > 0, webVulnScan: Array.isArray($json.webVulnScan) && $json.webVulnScan.length > 0, blocked } }];\n}\nconst isIp = ipv4Re.test(raw) || (raw.includes(':') && ipv6Re.test(raw));\nconst valid = raw.length > 0 && raw.length < 254 && (isIp || hostnameRe.test(raw));\nblocked = !authorized ? 'authorization checkbox not confirmed' : (!valid ? 'target failed validation' : null);\nreturn [{ json: { target: raw, isIp, isCidr: false, scanIntensity: $json.scanIntensity || 'dns-only', sqlInjectionTest: Array.isArray($json.sqlInjectionTest) && $json.sqlInjectionTest.length > 0, webVulnScan: Array.isArray($json.webVulnScan) && $json.webVulnScan.length > 0, blocked } }];\n"
    },
    "id": "a1000000-0000-4000-8000-000000000002",
    "name": "Validate & Normalize",
@@ -572,7 +576,9 @@
         "fieldType": "checkbox",
         "fieldOptions": {
          "values": [
-          {}
+          {
+           "option": "Run SQL injection testing (sqlmap) against discovered parameters"
+          }
          ]
         }
        },
@@ -581,7 +587,9 @@
         "fieldType": "checkbox",
         "fieldOptions": {
          "values": [
-          {}
+          {
+           "option": "Run full web vulnerability scan (OWASP ZAP spider + active scan)"
+          }
          ]
         }
        }
@@ -601,7 +609,7 @@
    },
    {
     "parameters": {
-     "jsCode": "\nconst raw = (($json.target) || '').trim().toLowerCase();\nconst authorized = $json.authorized === true || $json.authorized === 'true';\nconst hostnameRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;\nconst ipv4Re = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\nconst ipv6Re = /^[0-9a-f:]+$/i;\nconst cidrRe = /^(\\d{1,3}\\.){3}\\d{1,3}\\/(\\d{1,2})$/;\nconst cidrMatch = raw.match(cidrRe);\nlet isCidr = false, blocked = null;\nif (cidrMatch) {\n  const prefix = Number(cidrMatch[2]);\n  if (!authorized) { blocked = 'authorization checkbox not confirmed'; }\n  else if (prefix < 24) { blocked = `CIDR range too large (/${prefix} - this tool bounds network sweeps to /24 or smaller, max 256 addresses)`; }\n  else { isCidr = true; }\n  return [{ json: { target: raw, isIp: false, isCidr, scanIntensity: $json.scanIntensity || 'dns-only', blocked } }];\n}\nconst isIp = ipv4Re.test(raw) || (raw.includes(':') && ipv6Re.test(raw));\nconst valid = raw.length > 0 && raw.length < 254 && (isIp || hostnameRe.test(raw));\nblocked = !authorized ? 'authorization checkbox not confirmed' : (!valid ? 'target failed validation' : null);\nreturn [{ json: { target: raw, isIp, isCidr: false, scanIntensity: $json.scanIntensity || 'dns-only', blocked } }];\n"
+     "jsCode": "const raw = (($json.target) || '').trim().toLowerCase();\nconst authorized = Array.isArray($json.authorized) && $json.authorized.length > 0;\nconst hostnameRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;\nconst ipv4Re = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\nconst ipv6Re = /^[0-9a-f:]+$/i;\nconst cidrRe = /^(\\d{1,3}\\.){3}\\d{1,3}\\/(\\d{1,2})$/;\nconst cidrMatch = raw.match(cidrRe);\nlet isCidr = false, blocked = null;\nif (cidrMatch) {\n  const prefix = Number(cidrMatch[2]);\n  if (!authorized) { blocked = 'authorization checkbox not confirmed'; }\n  else if (prefix < 24) { blocked = `CIDR range too large (/${prefix} - this tool bounds network sweeps to /24 or smaller, max 256 addresses)`; }\n  else { isCidr = true; }\n  return [{ json: { target: raw, isIp: false, isCidr, scanIntensity: $json.scanIntensity || 'dns-only', sqlInjectionTest: Array.isArray($json.sqlInjectionTest) && $json.sqlInjectionTest.length > 0, webVulnScan: Array.isArray($json.webVulnScan) && $json.webVulnScan.length > 0, blocked } }];\n}\nconst isIp = ipv4Re.test(raw) || (raw.includes(':') && ipv6Re.test(raw));\nconst valid = raw.length > 0 && raw.length < 254 && (isIp || hostnameRe.test(raw));\nblocked = !authorized ? 'authorization checkbox not confirmed' : (!valid ? 'target failed validation' : null);\nreturn [{ json: { target: raw, isIp, isCidr: false, scanIntensity: $json.scanIntensity || 'dns-only', sqlInjectionTest: Array.isArray($json.sqlInjectionTest) && $json.sqlInjectionTest.length > 0, webVulnScan: Array.isArray($json.webVulnScan) && $json.webVulnScan.length > 0, blocked } }];\n"
     },
     "id": "a1000000-0000-4000-8000-000000000002",
     "name": "Validate & Normalize",
