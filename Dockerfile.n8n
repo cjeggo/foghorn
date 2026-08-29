@@ -12,7 +12,15 @@ FROM node:20-alpine
 # list (what gobuster's own docs point to) - grabbed as a single file rather
 # than cloning the full SecLists repo (many GB of unrelated wordlists).
 ARG GOBUSTER_VERSION=3.8.2
-RUN apk add --no-cache bind-tools nmap nmap-scripts whois python3 py3-pip git tini curl && \
+# testssl.sh is a plain bash script (not an Alpine package) - clone it pinned
+# to a release tag, same "grab it from its real distribution channel"
+# pattern as gobuster/recon-ng above. Relies on system openssl rather than
+# testssl's own bundled static binary - good enough for grading modern
+# TLS/cipher/cert issues on current web targets, not legacy-protocol
+# archaeology (SSLv2/SSLv3 support needs their bundled openssl to detect
+# reliably, out of scope here).
+ARG TESTSSL_VERSION=v3.2.4
+RUN apk add --no-cache bind-tools nmap nmap-scripts whois python3 py3-pip git tini curl bash coreutils procps openssl && \
     pip install --no-cache-dir --break-system-packages sqlmap && \
     git clone --depth 1 https://github.com/lanmaster53/recon-ng.git /opt/recon-ng && \
     pip install --no-cache-dir --break-system-packages -r /opt/recon-ng/REQUIREMENTS && \
@@ -22,6 +30,8 @@ RUN apk add --no-cache bind-tools nmap nmap-scripts whois python3 py3-pip git ti
     curl -sL "https://github.com/OJ/gobuster/releases/download/v${GOBUSTER_VERSION}/gobuster_Linux_${GOBUSTER_ARCH}.tar.gz" | tar -xz -C /usr/local/bin gobuster && \
     mkdir -p /opt/wordlists && \
     curl -sL -o /opt/wordlists/common.txt https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt && \
+    git clone --depth 1 --branch ${TESTSSL_VERSION} https://github.com/drwetter/testssl.sh.git /opt/testssl.sh && \
+    ln -s /opt/testssl.sh/testssl.sh /usr/local/bin/testssl.sh && \
     npm install -g n8n retire
 USER node
 ENTRYPOINT ["tini", "--", "n8n"]
