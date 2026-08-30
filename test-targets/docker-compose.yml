@@ -52,13 +52,22 @@ services:
       - "192.168.56.1:8081:80"
       - "192.168.56.1:33061:3306"
 
-  # WordPress target for the wpscan branch. WP hard-redirects to its stored
-  # site URL, which breaks scanning by container hostname; WORDPRESS_CONFIG_EXTRA
-  # derives siteurl/home from the request Host header so it answers correctly
-  # both as http://wordpress (from n8n) and http://192.168.56.1:8083 (from Kali).
-  # After first `up`, complete the install once:
-  #   curl -d 'weblog_title=ReconLab&user_name=admin&admin_password=Adm1n-Recon-Lab-2026&admin_password2=Adm1n-Recon-Lab-2026&pw_weak=1&admin_email=admin@recon.lab&blog_public=1&Submit=Install+WordPress' \
-  #     'http://192.168.56.1:8083/wp-admin/install.php?step=2'
+  # ---------------------------------------------------------------------------
+  # WordPress targets for the wpscan branch. Two tiers (see the WordPress
+  # proof-out plan in the Obsidian vault):
+  #   wordpress      - current core, clean install: proves detection + the
+  #                    branch runs and reports honestly ("no known vulns").
+  #   wordpress-vuln - old core with real CVEs (CVE-2017-1001000 REST API
+  #                    content injection, etc), proves the Section 6
+  #                    "WordPress - vulnerable component" -> Metasploit/searchsploit
+  #                    dispatch fires on real vuln data. NB: the 4.7.1 image tag
+  #                    is silently patched to 4.7.35 (no CVEs) - wp-setup.sh
+  #                    overlays the frozen wordpress.org 4.7.0 archive.
+  #
+  # After `up`, complete each install and pin its site URL to the container
+  # hostname (WP otherwise 301s to whatever host it was installed from, which
+  # breaks scanning by container name). Helper: test-targets/wp-setup.sh
+  # ---------------------------------------------------------------------------
   wp-mariadb:
     image: docker.io/library/mariadb:10.6
     hostname: wp-mariadb
@@ -71,7 +80,7 @@ services:
       MARIADB_PASSWORD: wppass
 
   wordpress:
-    image: docker.io/library/wordpress:5.7-apache
+    image: docker.io/library/wordpress:6.5-apache
     hostname: wordpress
     container_name: wordpress
     networks: ['demo']
@@ -81,13 +90,33 @@ services:
       WORDPRESS_DB_USER: wp
       WORDPRESS_DB_PASSWORD: wppass
       WORDPRESS_DB_NAME: wordpress
-      WORDPRESS_CONFIG_EXTRA: |
-        if (isset($$_SERVER['HTTP_HOST'])) {
-          define('WP_SITEURL', 'http://' . $$_SERVER['HTTP_HOST']);
-          define('WP_HOME', 'http://' . $$_SERVER['HTTP_HOST']);
-        }
     ports:
       - "192.168.56.1:8083:80"
+
+  wp-vuln-db:
+    image: docker.io/library/mariadb:10.6
+    hostname: wp-vuln-db
+    container_name: wp-vuln-db
+    networks: ['demo']
+    environment:
+      MARIADB_ROOT_PASSWORD: r
+      MARIADB_DATABASE: wp
+      MARIADB_USER: wp
+      MARIADB_PASSWORD: wp
+
+  wordpress-vuln:
+    image: docker.io/library/wordpress:4.7.1-apache
+    hostname: wordpress-vuln
+    container_name: wordpress-vuln
+    networks: ['demo']
+    depends_on: ['wp-vuln-db']
+    environment:
+      WORDPRESS_DB_HOST: wp-vuln-db
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: wp
+      WORDPRESS_DB_NAME: wp
+    ports:
+      - "192.168.56.1:8084:80"
 
   metasploitable2:
     image: docker.io/tleemcjr/metasploitable2
