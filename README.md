@@ -6,6 +6,11 @@ and a set of opt-in active tests, then produces a structured Markdown report who
 "what to do next" section is **deterministic** — every finding is routed to a
 specific tool by rule, not guessed by an LLM.
 
+It is a **discovery / attack-surface-mapping tool**: it assesses a target as an
+anonymous external attacker would. It does not authenticate and it does not run
+exploits — it names the exploit and leaves it to a human (or the separate,
+parked exploitation phase).
+
 Layers onto the existing `n8n-local` podman stack rather than duplicating it. See
 `docs/recon-workflow-design.md` for the full design history and rationale.
 
