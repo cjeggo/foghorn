@@ -52,6 +52,30 @@ services:
       - "192.168.56.1:8081:80"
       - "192.168.56.1:33061:3306"
 
+  # Damn Vulnerable GraphQL Application - ground truth for the GraphQL probe
+  # (introspection, field-suggestion leak, batching, GET queries). Notes:
+  #  - WEB_HOST override: DVGA's Flask defaults to binding 127.0.0.1 only.
+  #  - DVGA only listens on 5013, which is outside nmap's --top-ports 100, so
+  #    the platform's port scan never finds it. dvga-fwd socat-forwards
+  #    dvga:8080 -> 5013 so the scan sees it on a common port. (Real fix for
+  #    the platform: widen the port scan - see the gaps writeup.)
+  dvga:
+    image: docker.io/dolevf/dvga
+    hostname: dvga
+    container_name: dvga
+    networks: ['demo']
+    environment:
+      WEB_HOST: 0.0.0.0
+    ports:
+      - "192.168.56.1:5013:5013"
+
+  dvga-fwd:
+    image: docker.io/alpine/socat
+    container_name: dvga-fwd
+    network_mode: "container:dvga"
+    depends_on: ['dvga']
+    command: tcp-listen:8080,fork,reuseaddr tcp:127.0.0.1:5013
+
   # ---------------------------------------------------------------------------
   # WordPress targets for the wpscan branch. Two tiers (see the WordPress
   # proof-out plan in the Obsidian vault):
