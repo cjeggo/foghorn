@@ -20,7 +20,8 @@ n8n UI: http://localhost:5678
 
 - `Dockerfile.n8n` — extends the stock n8n image with `dig`, `nmap`, `sqlmap`, `recon-ng`.
 - `docker-compose.override.yml` — layers the custom build + ZAP sidecar onto `n8n-local`'s stack.
-- `workflows/` — exported n8n workflow JSON (version-controlled copies of what's built in the running instance).
+- `workflows/` — n8n workflow JSON, kept in sync with the running instance via `scripts/n8n_sync.py`.
+- `scripts/n8n_sync.py` — `status` (show repo/live drift), `export` (live → repo), `deploy` (repo → live, activates, re-links sub-workflow ids on a fresh instance). Needs `N8N_API_KEY` (env or repo-root `.n8n-api-key`, gitignored). **Run `export` after editing workflows in the n8n UI; run `deploy` after editing the JSON.**
 - `docs/` — design docs.
 
 Scan reports land in `n8n-local/shared/recon/` (reuses the existing `./shared` bind mount).

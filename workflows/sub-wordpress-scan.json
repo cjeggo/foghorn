@@ -1,11 +1,5 @@
 {
  "name": "Sub - WordPress Scan (wpscan)",
- "active": true,
- "settings": {
-  "executionOrder": "v1",
-  "callerPolicy": "workflowsFromSameOwner",
-  "availableInMCP": false
- },
  "nodes": [
   {
    "parameters": {
@@ -80,6 +74,11 @@
     ]
    ]
   }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "callerPolicy": "workflowsFromSameOwner",
+  "availableInMCP": false
  },
  "id": "v0I742FVkJROVPWI"
 }

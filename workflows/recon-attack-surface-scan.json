@@ -1,11 +1,5 @@
 {
- "updatedAt": "2026-08-23T16:44:54.366Z",
- "createdAt": "2026-08-23T15:53:40.878Z",
- "id": "RMJAXbF2cVeHL4Rb",
  "name": "Recon - Attack Surface Scan (MVP)",
- "description": null,
- "active": true,
- "isArchived": false,
  "nodes": [
   {
    "parameters": {
@@ -512,9 +506,5 @@
   "callerPolicy": "workflowsFromSameOwner",
   "availableInMCP": false
  },
- "staticData": null,
- "meta": null,
- "pinData": {},
- "triggerCount": 1,
- "tags": []
+ "id": "RMJAXbF2cVeHL4Rb"
 }
