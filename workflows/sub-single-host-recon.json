@@ -1,11 +1,5 @@
 {
- "updatedAt": "2026-08-23T17:56:37.107Z",
- "createdAt": "2026-08-23T15:53:02.287Z",
- "id": "kib34AggAcopWJZ9",
  "name": "Sub - Single Host Recon",
- "description": null,
- "active": true,
- "isArchived": false,
  "nodes": [
   {
    "parameters": {
@@ -27,6 +21,10 @@
       },
       {
        "name": "webVulnScan",
+       "type": "boolean"
+      },
+      {
+       "name": "wordpressScan",
        "type": "boolean"
       }
      ]
@@ -238,7 +236,7 @@
   },
   {
    "parameters": {
-    "jsCode": "\nconst data = $json;\nconst now = new Date();\nconst pad = n => String(n).padStart(2, '0');\nconst ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;\n\n// Trim the payload that goes to the LLM - drop redundant/verbose fields so\n// the prompt stays small enough for the model to reliably follow the\n// requested report structure instead of drowning in raw data.\nlet promptWebScan = null;\nif (data.webScan) {\n  const ws = data.webScan;\n  promptWebScan = {\n    reachable: ws.reachable,\n    reason: ws.reason,\n    origin: ws.origin,\n    securityHeaders: ws.securityHeaders,\n    cookies: ws.cookies,\n    fingerprint: ws.fingerprint ? {\n      assetCount: ws.fingerprint.assetCount,\n      evidenceStrings: ws.fingerprint.evidenceStrings,\n    } : undefined,\n    forms: ws.forms,\n    contentDiscovery: (ws.contentDiscovery || []).filter(r => r.distinctFromBaseline),\n    contentDiscoveryCheckedCount: (ws.contentDiscovery || []).length,\n    pagesCrawledCount: ws.pagesCrawled,\n    robotsTxtStatus: ws.robotsTxtStatus,\n    sitemapXmlStatus: ws.sitemapXmlStatus,\n  };\n}\n\nconst promptData = {\n  target: data.target, isIp: data.isIp, scanIntensity: data.scanIntensity,\n  dns: data.dns, subdomains: data.subdomains, whois: data.whois, resolvedIp: data.resolvedIp,\n  attckCoverage: data.attckCoverage, portScan: data.portScan,\n  webScan: promptWebScan,\n  componentFindings: data.componentFindings,\n  sqlmapScan: data.sqlmapScan,\n  zapScan: data.zapScan,\n  sensitiveFileExposures: data.sensitiveFileExposures,\n};\n\nreturn [{ json: { ...data, reportTimestamp: ts, reportFilename: `${data.target}-${ts}.md`, promptData } }];\n"
+    "jsCode": "const data = $json;\nconst now = new Date();\nconst pad = n => String(n).padStart(2, '0');\nconst ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;\n\nreturn [{ json: { ...data, reportTimestamp: ts, reportFilename: `${data.target}-${ts}.md` } }];\n"
    },
    "id": "aade419a-b04c-4f65-bc0c-8f4e77f917b7",
    "name": "Build Report Data",
@@ -268,12 +266,12 @@
      "name": "Recon Platform Ollama"
     }
    },
-   "disabled": true
+   "disabled": false
   },
   {
    "parameters": {
     "promptType": "define",
-    "text": "=FORMAT: think it through first if you need to, but write your FINAL answer wrapped between the literal markers <ANSWER> and </ANSWER>, with nothing else inside those markers - no self-review, no \"wait, let me reconsider\", no second draft. Decide once, then write it once inside the markers. Everything outside the markers is discarded. Inside the markers, begin IMMEDIATELY with \"## 7. ATT&CK-Aligned Next-Phase Plan\" - no preamble, no restating the task, no repeating section 6's content.\n\nYou are writing the final section of an authorized recon report on {{$json.target}}. No phishing/social engineering (T1566, T1598, T1589, T1591) - infrastructure/technical only.\n\nSection 6 of this report (already written, one bullet per finding with a tool/command, goal, chain, and verification signal each):\n{{$json.section6Text}}\n\nWrite section 7:\n\n## 7. ATT&CK-Aligned Next-Phase Plan\nTie section 6's actions to the three ATT&CK tactics that follow reconnaissance. Every finding you reference must be copied verbatim (the exact `### ` heading text) from section 6 above - do not invent, rename, merge, or paraphrase a finding name, and never introduce a technique or vulnerability class that section 6 doesn't already name. If you are not quoting a heading that literally appears in section 6, do not write that line. Skip anything section 6 marked as a scanner false positive or a negative/clean result - only chain together real findings.\n   a. Resource Development (TA0042) - what to stage (wordlist, PoC page, cloned repo, etc).\n   b. Initial Access (TA0001), non-human-targeting only - the actual entry-point attempt.\n   c. Execution (TA0002) - what follows once that entry point succeeds.",
+    "text": "=FORMAT: think it through first if you need to, but write your FINAL answer wrapped between the literal markers <ANSWER> and </ANSWER>, with nothing else inside those markers - no self-review, no \"wait, let me reconsider\", no second draft. Decide once, then write it once inside the markers. Everything outside the markers is discarded. Inside the markers, begin IMMEDIATELY with \"## 7. ATT&CK-Aligned Next-Phase Plan\" - no preamble, no restating the task.\n\nYou are writing the final section of an authorized recon report on {{$json.target}}. No phishing/social engineering (T1566, T1598, T1589, T1591) - infrastructure/technical only. Keep your answer SHORT - a few sentences per triggered layer below, not a paragraph per finding.\n\nSection 6 of this report already decided a tool for every finding deterministically (not guessed) - here is a condensed summary grouped by tool, not the full per-finding list:\n{{$json.section6Summary}}\n\nWhich of the three additive recon layers actually triggered this run - already decided deterministically, not yours to guess or add to:\n- Network/OS layer triggered: {{$json.layerTriggers.networkLayerTriggered}}\n- Middleware/technology layer triggered: {{$json.layerTriggers.middlewareLayerTriggered}}{{$json.layerTriggers.identifiedProducts && $json.layerTriggers.identifiedProducts.length ? ' (identified: ' + $json.layerTriggers.identifiedProducts.join(', ') + ')' : ''}}\n- Webapp/API layer triggered: {{$json.layerTriggers.webappLayerTriggered}}\n\nWrite section 7:\n\n## 7. ATT&CK-Aligned Next-Phase Plan\nTie the tool groups above to the three ATT&CK tactics that follow reconnaissance, but ONLY for layers marked triggered above - if a layer is false, do not write a paragraph for it, do not speculate about what might be there. Reference only the tools/categories named in the summary above - do not invent a tool or finding not listed there.\n   a. Resource Development (TA0042) - what to stage (wordlist, PoC page, cloned repo, etc), grounded in the tools already decided above.\n   b. Initial Access (TA0001), non-human-targeting only - the actual entry-point attempt, using the tools above.\n   c. Execution (TA0002) - what follows once that entry point succeeds.\nIf no layer triggered, or there are no actionable findings above, write exactly one line: \"No further phase to plan - no confirmed findings this run to chain forward.\" and nothing else.",
     "batching": {}
    },
    "id": "633190ce-4ec3-462e-a37b-ad3d016bf3e3",
@@ -287,11 +285,11 @@
    "retryOnFail": true,
    "maxTries": 3,
    "waitBetweenTries": 5000,
-   "disabled": true
+   "disabled": false
   },
   {
    "parameters": {
-    "jsCode": "const ctx = $json;\nconst header = `# Recon Report: ${ctx.target}\\n\\n- Timestamp: ${ctx.reportTimestamp}\\n- Scan intensity: ${ctx.scanIntensity}\\n\\n---\\n\\n`;\nconst parkedNote = '## 6-7. Attack Narrative (parked)\\n\\n_Free-form attack-chain synthesis (Sections 6-7) is temporarily disabled pending the deterministic finding-chaining rework - tool selection was being guessed by the local model rather than derived from the finding itself. Re-enable once findings are routed through rule-based tool selection instead of free-form LLM judgment._\\n\\n';\nconst reportContent = header + ctx.sections1to5 + '\\n' + parkedNote + ctx.section8 + '\\n';\nreturn [{ json: { ...ctx, reportContent } }];\n"
+    "jsCode": "const ctx = $('Build Deterministic Report Sections').item.json;\nconst section6Text = $('Aggregate Section 6').item.json.section6Text || '## 6. If I Were Attacking This\\n\\n(Not generated.)';\n\n// Section 7 extraction. Two real bugs found and fixed here via raw\n// execution data, not by guessing:\n// 1. qwen3 sometimes mentions the required <ANSWER>/</ANSWER> tag names\n//    inside its own reasoning prose (e.g. \"Check that the answer is\n//    wrapped in <ANSWER> and </ANSWER> without any extra text.\") before\n//    ever producing the real answer. A first-match regex pairs that\n//    self-reminder's tags together and captures nothing (or near-nothing)\n//    real, discarding the genuinely well-formed answer that follows.\n//    Fixed by taking the LAST <ANSWER>/</ANSWER> pair, not the first, and\n//    requiring a minimum length so a short spurious match still falls\n//    through to the next path rather than being trusted.\n// 2. qwen3 doesn't always emit <ANSWER> tags at all even when it produces\n//    a correct, well-scoped answer - falls back to finding the last\n//    occurrence of the exact required heading, but only if that tail\n//    contains none of the first-person hedging language real leaked\n//    reasoning always has, so raw chain-of-thought still never leaks\n//    through if neither path finds a clean answer.\nlet raw = $json.text || $json.output || '';\nraw = raw.replace(/^[\\s\\S]*?<\\/think>\\s*/i, '');\n\nlet section7Text = '';\nconst lastOpen = raw.lastIndexOf('<ANSWER>');\nconst lastClose = raw.lastIndexOf('</ANSWER>');\nif (lastOpen !== -1 && lastClose !== -1 && lastClose > lastOpen) {\n  const candidate = raw.slice(lastOpen + '<ANSWER>'.length, lastClose).trim();\n  if (candidate.length > 20) section7Text = candidate;\n}\n\nif (!section7Text) {\n  const heading = '## 7. ATT&CK-Aligned Next-Phase Plan';\n  const lastIdx = raw.lastIndexOf(heading);\n  if (lastIdx !== -1) {\n    const tail = raw.slice(lastIdx).trim();\n    const looksLikeReasoning = /\\b(wait|let me|i need to|i think|maybe|perhaps|the user (wants|said|mentioned))\\b/i.test(tail);\n    if (!looksLikeReasoning) section7Text = tail;\n  }\n}\n\nif (!section7Text) {\n  section7Text = '## 7. ATT&CK-Aligned Next-Phase Plan\\n\\n(Ollama did not return a well-formed answer for this section - raw reasoning discarded rather than included.)';\n} else if (!/^#{1,3}\\s/.test(section7Text)) {\n  section7Text = '## 7. ATT&CK-Aligned Next-Phase Plan\\n\\n' + section7Text;\n}\n\nconst header = `# Recon Report: ${ctx.target}\\n\\n- Timestamp: ${ctx.reportTimestamp}\\n- Scan intensity: ${ctx.scanIntensity}\\n\\n---\\n\\n`;\nconst reportContent = header + ctx.sections1to5 + '\\n' + section6Text + '\\n\\n' + section7Text + '\\n\\n' + ctx.section8 + '\\n';\nreturn [{ json: { ...ctx, reportContent } }];\n"
    },
    "id": "c75d7fc2-366a-4512-92ae-039262e85b57",
    "name": "Build Report File",
@@ -358,7 +356,7 @@
     432
    ],
    "webhookId": "4cdb2cef-5156-4b0d-a4f0-f040c7347c6b",
-   "disabled": true
+   "disabled": false
   },
   {
    "parameters": {
@@ -513,7 +511,7 @@
   },
   {
    "parameters": {
-    "jsCode": "\nconst ctx = $json;\nconst lines = [];\nconst p = (s='') => lines.push(s);\n\n// --- 1. MITRE ATT&CK Reconnaissance (TA0043) Coverage ---\np('## 1. MITRE ATT&CK Reconnaissance (TA0043) Coverage');\np('');\np('| Technique | Name | Status |');\np('|---|---|---|');\nfor (const c of (ctx.attckCoverage || [])) p(`| ${c.technique} | ${c.name} | ${c.status} |`);\np('');\np('Out of scope: T1589/T1591/T1593.001/T1598 (people/social engineering, explicitly excluded). T1597 (Search Closed Sources) requires paid threat-intel access not available in this platform.');\np('');\n\n// --- 2. Attack Surface Summary ---\np('## 2. Attack Surface Summary');\np('');\np(`- Target: \\`${ctx.target}\\` (resolved IP: \\`${ctx.resolvedIp || 'none'}\\`)`);\np(`- Subdomains discovered: ${(ctx.subdomains || []).length}`);\nconst openPortsList = (ctx.portScan && !ctx.portScan.skipped) ? ctx.portScan.openPorts.map(o => `${o.port}/${o.protocol} (${o.service})`).join(', ') : 'port scan not run';\np(`- Open ports: ${openPortsList || 'none found'}`);\np(`- Web application reachable: ${ctx.webScan ? (ctx.webScan.reachable ? 'yes, at ' + ctx.webScan.origin : 'no') : 'not attempted'}`);\np('');\n\n// --- Target Profile (deterministic synthesis from attribution/header/cookie\n// evidence already collected elsewhere - no new probing, no LLM). Only states\n// what's confidently evidenced; silent (not a guess) on anything it isn't. ---\nconst attr = ctx.attribution || {};\nconst profileParts = [];\nif (attr.cloudProvider && attr.cloudProvider !== 'other/unknown') {\n  let hosting = `hosted on ${attr.cloudProvider}`;\n  if (attr.azureRegion) hosting += ` (${attr.azureRegion})`;\n  profileParts.push(hosting);\n} else if (attr.asnOrgName) {\n  profileParts.push(`hosted at ${attr.asnOrgName}`);\n}\nconst _headers = (ctx.webScan && ctx.webScan.headers) || {};\nconst _h = (name) => _headers[name] || _headers[name.toLowerCase()] || _headers[name.toUpperCase()];\nconst cfDetected = !!_h('cf-ray');\nif (cfDetected) profileParts.push('fronted by Cloudflare');\nconst cookieNames = ((ctx.webScan && ctx.webScan.cookies) || []).map(c => c.name.toLowerCase());\nlet language = null;\nif (cookieNames.some(n => n.includes('jsessionid'))) language = 'Java';\nelse if (cookieNames.some(n => n.includes('phpsessid'))) language = 'PHP';\nelse if (cookieNames.some(n => n.includes('asp.net_sessionid') || n.includes('aspsessionid'))) language = '.NET';\nconst serverHeader = _h('server');\nconst poweredBy = _h('x-powered-by');\nif (!language && poweredBy) language = poweredBy;\nif (language) profileParts.push(`${language}-based`);\nelse if (serverHeader) profileParts.push(`served by ${serverHeader}`);\nif (attr.hostingModelHint) profileParts.push(attr.hostingModelHint);\nif (profileParts.length) {\n  p(`**Target Profile:** ${ctx.target} appears to be ${profileParts.join(', ')}.`);\n  p('');\n}\n\nif (ctx.escalationRecommendation) { p(`**Executive Risk Summary:** ${ctx.escalationRecommendation}`); }\n// Deterministic scan-coverage disclosure, always accurate regardless of what\n// the LLM said above - a \"low\"/\"no findings\" verdict from a dns+ports-only\n// run means something very different from the same verdict after a full\n// dns+ports+web+sqlmap+zap run, and that distinction should never depend on\n// the model remembering to mention it.\nconst covRan = [];\nconst covNotRun = [];\n(ctx.portScan && !ctx.portScan.skipped ? covRan : covNotRun).push('port scan');\n(ctx.tlsScan && !ctx.tlsScan.skipped ? covRan : covNotRun).push('TLS/certificate analysis');\n(ctx.attribution ? covRan : covNotRun).push('cloud/network attribution');\n(ctx.webScan && ctx.webScan.reachable ? covRan : covNotRun).push('web crawl/content discovery');\n(ctx.webScan && ctx.webScan.ajaxSpiderRan ? covRan : covNotRun).push('AJAX-spider endpoint discovery');\n(ctx.sqlmapScan && !ctx.sqlmapScan.skipped ? covRan : covNotRun).push('SQL injection testing (sqlmap)');\n(ctx.zapScan && !ctx.zapScan.skipped && ctx.zapScan.reachable ? covRan : covNotRun).push('full web vulnerability scan (ZAP)');\nlet covLine = `_Scan coverage: ${covRan.length ? covRan.join(', ') : 'DNS/subdomain enumeration only'} run.`;\nif (covNotRun.length) covLine += ` Not run: ${covNotRun.join(', ')} - a clean result above reflects only what was actually tested, not a guarantee those areas are clean.`;\ncovLine += '_';\np(covLine);\np('');\n\n// --- 3. DNS, WHOIS & Subdomains ---\np('## 3. DNS, WHOIS & Subdomains');\np('');\nconst dns = ctx.dns || {};\nfor (const rt of ['A','AAAA','MX','NS','TXT','SOA']) {\n  const vals = dns[rt] || [];\n  p(`- **${rt}**: ${vals.length ? vals.join(', ') : 'none'}`);\n}\nconst whoisKeys = Object.keys(ctx.whois || {});\np(`- **WHOIS**: ${whoisKeys.length ? whoisKeys.map(k => `${k}: ${ctx.whois[k]}`).join('; ') : 'no data returned'}`);\np(`- **Subdomains**: ${(ctx.subdomains || []).length ? ctx.subdomains.join(', ') : 'none discovered'}`);\np('');\n\n// --- 4. Open Ports & Services ---\np('## 4. Open Ports & Services');\np('');\nif (!ctx.portScan || ctx.portScan.skipped) {\n  p(`Port scan not run (${ctx.portScan ? ctx.portScan.reason : 'scan intensity too low'}).`);\n} else if (!ctx.portScan.openPorts.length) {\n  p('Port scan ran, no open ports found in the scanned range.');\n} else {\n  p('| Port | Protocol | Service (nmap-identified) | Product/Version |');\n  p('|---|---|---|---|');\n  for (const o of ctx.portScan.openPorts) p(`| ${o.port} | ${o.protocol} | ${o.service} | ${o.product ? (o.product + (o.version ? ' ' + o.version : '')) : 'not detected'} |`);\n  p('');\n  p('#### Per-Port Script Findings');\n  const knownSecurityChecks = {\n    'ftp-anon': { label: 'Anonymous FTP login', positive: 'Anonymous login allowed', negative: 'Anonymous login not allowed' },\n    'smb-os-discovery': { label: 'SMB OS discovery', positive: null, negative: 'No SMB service / discovery produced no data' },\n  };\n  let anyScriptOutput = false;\n  for (const o of ctx.portScan.openPorts) {\n    const nonVulnersScripts = (o.scripts || []).filter(s => s.id !== 'vulners');\n    const ranIds = new Set(nonVulnersScripts.map(s => s.id));\n    for (const [scriptId, meta] of Object.entries(knownSecurityChecks)) {\n      if (o.service !== 'ftp' && scriptId === 'ftp-anon') continue;\n      const hit = nonVulnersScripts.find(s => s.id === scriptId);\n      anyScriptOutput = true;\n      if (hit) {\n        p(`- Port ${o.port} (\\`${scriptId}\\`): **${meta.positive || hit.output}** - \\`${hit.output}\\``);\n      } else if (o.service === 'ftp' || scriptId !== 'ftp-anon') {\n        p(`- Port ${o.port} (\\`${scriptId}\\`): tested, no positive result - ${meta.negative}.`);\n      }\n    }\n    for (const s of nonVulnersScripts) {\n      if (knownSecurityChecks[s.id]) continue;\n      anyScriptOutput = true;\n      p(`- Port ${o.port} (\\`${s.id}\\`): ${s.output}`);\n    }\n  }\n  if (!anyScriptOutput) p('- No NSE script findings for any open port.');\n}\np('');\n\n// --- 5. Confirmed Findings (Evidence-Backed) ---\np('## 5. Confirmed Findings');\np('');\nif (ctx.webScan && ctx.webScan.reachable) {\n  const ws = ctx.webScan;\n  p('### Missing Security Headers');\n  if (ws.securityHeaders.missing.length) {\n    for (const h of ws.securityHeaders.missing) p(`- \\`${h}\\`: not set`);\n  } else { p('- None missing - all checked headers present.'); }\n  p('');\n  p('### Cookies');\n  if (ws.cookies.length) {\n    for (const c of ws.cookies) p(`- \\`${c.name}\\`: Secure=${c.secure}, HttpOnly=${c.httpOnly}, SameSite=${c.sameSite}`);\n  } else { p('- No cookies observed.'); }\n  p('');\n  p('### Content Discovery (baselined - soft-404s already excluded)');\n  const hits = (ws.contentDiscovery || []).filter(r => r.distinctFromBaseline);\n  if (hits.length) {\n    p('| Path | Status | Source |');\n    p('|---|---|---|');\n    for (const h of hits) p(`| \\`${h.path}\\` | ${h.status} | ${h.fromAjaxSpider ? 'observed via AJAX spider' : (h.fromJsBundle ? 'discovered in JS bundle (not linked anywhere)' : 'wordlist')} |`);\n  } else { p(`- No genuine hits out of ${(ws.contentDiscovery || []).length} paths checked (all matched the site's baseline/soft-404 response).`); }\n  p('');\n  p('### Technology Fingerprint');\n  if (ws.fingerprint && ws.fingerprint.evidenceStrings.length) {\n    for (const e of ws.fingerprint.evidenceStrings.slice(0, 15)) p(`- ${e}`);\n  } else { p('- No fingerprint evidence collected.'); }\n  p('');\n  p('### Forms / Parameter Surface');\n  if (ws.forms && ws.forms.length) {\n    for (const f of ws.forms) p(`- \\`${f.method} ${f.action}\\` - fields: ${f.fields.join(', ')} (page: ${f.page})`);\n  } else { p('- No server-rendered \\\\<form\\\\> elements found (common for JS-driven SPAs - the real submit targets are the discovered API paths above, not HTML forms).'); }\n  p('');\n} else {\n  p(`Web scan not reachable/not run - ${ctx.webScan ? ctx.webScan.reason : 'no web target'}.`);\n  p('');\n}\n\np('### Cloud/Network Attribution');\nconst attrFindings = ctx.attribution || {};\np(`- Resolved IP: \\`${attrFindings.resolvedIp || 'not resolved'}\\``);\np(`- ASN: ${attrFindings.asn || 'unknown'}${attrFindings.asnOrgName ? ' (' + attrFindings.asnOrgName + ')' : ''}${attrFindings.asnCountry ? ', ' + attrFindings.asnCountry : ''}`);\np(`- Cloud provider (ASN-based attribution): ${attrFindings.cloudProvider || 'other/unknown'}${attrFindings.azureRegion ? ' - region: ' + attrFindings.azureRegion : ''}`);\nif (attrFindings.hostingModelHint) p(`- Hosting model signal: ${attrFindings.hostingModelHint}`);\nif (attrFindings.cnameChain && attrFindings.cnameChain.length) {\n  p(`- CNAME chain: ${attrFindings.cnameChain.join(' -> ')}`);\n}\np('');\n\np('### TLS/Certificate Analysis (testssl.sh)');\nif (!ctx.tlsScan || ctx.tlsScan.skipped) {\n  p('- Not run.');\n} else if (ctx.tlsScan.ranButNoOutput) {\n  p('- testssl.sh ran but produced no parseable output this run (transient failure or timeout) - not a confirmed clean result, worth a manual re-check.');\n} else if (ctx.tlsScan.findingCount === 0) {\n  p('- testssl.sh ran, no LOW/MEDIUM/HIGH/CRITICAL findings (protocol/cipher/cert issues) - certificate SANs below still captured regardless.');\n} else {\n  for (const f of ctx.tlsScan.findings) {\n    p(`- **${f.severity}** (\\`${f.id}\\`)${f.cve ? ' [' + f.cve + ']' : ''}: ${f.finding}`);\n  }\n}\nif (ctx.tlsScan && ctx.tlsScan.certSans && ctx.tlsScan.certSans.length) {\n  p(`- Certificate SANs: ${ctx.tlsScan.certSans.join(', ')}`);\n}\np('');\n\np('### Known Vulnerabilities (CVE Matches, via nmap vulners)');\nconst cveHits = [];\nif (ctx.portScan && !ctx.portScan.skipped) {\n  for (const o of ctx.portScan.openPorts) {\n    for (const s of (o.scripts || [])) {\n      if (s.id === 'vulners' && s.cves) {\n        for (const c of s.cves) cveHits.push({ port: o.port, service: o.service, product: o.product, version: o.version, ...c });\n      }\n    }\n  }\n}\n// vulners cites the same underlying vulnerability from many sources\n// (packetstorm/metasploit/exploitdb/githubexploit/zdt/etc, each its own\n// entry at the same CVSS) - only entries whose id is an actual CVE number\n// are distinct, uniquely-identified vulnerabilities; everything else is a\n// citation of public exploit tooling *for* one of those CVEs, not a\n// separate finding. Bucket by port+product+version, dedupe real CVEs by\n// their own id (never by CVSS alone - two different CVEs can share a\n// score). vulners does NOT map an exploit-tooling citation to a specific\n// CVE id, so \"which CVE does this exploit target\" is not directly\n// determinable from this data source - matching by exact CVSS score\n// within the same bucket is the closest available correlation (an\n// exploit citation at the same severity as a specific CVE is reasonably\n// likely to target that CVE), not a guaranteed per-CVE mapping. Verified\n// live against a real multi-CVE target (Apache httpd 2.2.8, 100+ distinct\n// catalogued CVEs) before shipping: this narrows a naive \"any exploit\n// citation anywhere for this software\" correlation (which put literally\n// every CVE in \"exploitable\") down to a real, meaningfully split result.\nconst isRealCve = (id) => /^CVE-\\d{4}-\\d+$/.test(id || '');\nconst buckets = new Map();\nfor (const c of cveHits) {\n  const key = `${c.port}|${c.product}|${c.version}`;\n  if (!buckets.has(key)) buckets.set(key, { port: c.port, service: c.service, product: c.product, version: c.version, cves: new Map(), exploitCvss: new Set() });\n  const b = buckets.get(key);\n  if (c.isExploit) b.exploitCvss.add(c.cvss);\n  if (isRealCve(c.id)) {\n    const existing = b.cves.get(c.id);\n    if (!existing || c.cvss > existing.cvss) b.cves.set(c.id, { id: c.id, cvss: c.cvss });\n  }\n}\nconst exploitable = [];\nconst researchOnly = [];\nfor (const b of buckets.values()) {\n  for (const cve of b.cves.values()) {\n    const row = { port: b.port, service: b.service, product: b.product, version: b.version, id: cve.id, cvss: cve.cvss };\n    if (b.exploitCvss.has(cve.cvss)) exploitable.push(row); else researchOnly.push(row);\n  }\n}\nexploitable.sort((a, b) => (b.cvss || 0) - (a.cvss || 0));\nresearchOnly.sort((a, b) => (b.cvss || 0) - (a.cvss || 0));\nconst renderCveTable = (rows) => {\n  p('| Port | Product/Version | CVE | CVSS |');\n  p('|---|---|---|---|');\n  for (const c of rows) p(`| ${c.port}/${c.service} | ${c.product || 'unknown'} ${c.version || ''} | ${isRealCve(c.id) ? `[${c.id}](https://vulners.com/cve/${c.id})` : c.id} | ${c.cvss ?? 'n/a'} |`);\n};\nif (exploitable.length || researchOnly.length) {\n  p('#### Vulnerabilities with Known Public Exploit');\n  if (exploitable.length) renderCveTable(exploitable); else p('- None.');\n  p('');\n  p('#### Vulns with No Known Public Exploit');\n  if (researchOnly.length) renderCveTable(researchOnly); else p('- None.');\n} else {\n  p('- nmap vulners ran against every open port with an identified product/version (CPE), no known CVEs matched. This does not rule out unknown/0-day issues, only means no *known, catalogued* CVE matches the detected product/version.');\n}\np('');\n\np('### Exposed Sensitive Files');\nif (ctx.sensitiveFileExposures && ctx.sensitiveFileExposures.length) {\n  for (const f of ctx.sensitiveFileExposures) {\n    if (f.confirmed) {\n      p(`- **\\`${f.path}\\`** (found via ${f.source}, HTTP ${f.status}, ${f.length} bytes) - actual content fetched:`);\n      p('  ```');\n      p('  ' + f.excerpt.replace(/\\n/g, '\\n  ').slice(0, 1000));\n      p('  ```');\n    } else {\n      p(`- \\`${f.path}\\` flagged by ${f.source} - worth checking manually: \\`curl -i '${f.url}'\\`.`);\n    }\n  }\n} else {\n  p('- No backup/config/source-control-pattern files (`.bak`, `.env`, `.git/`, etc.) referenced by discovered paths or ZAP-flagged URLs.');\n}\np('');\n\np('### Vulnerable Components (retire.js against fetched JS bundle)');\nif (ctx.componentFindings && ctx.componentFindings.length) {\n  for (const c of ctx.componentFindings) {\n    p(`- **${c.component} ${c.version}** - severity ${c.severity}${c.cve.length ? ', ' + c.cve.join(', ') : ''}: ${c.summary || 'see info links'}`);\n  }\n} else { p('- retire.js scan ran, no known-vulnerable component versions matched.'); }\np('');\n\np('### Vulnerable Components - Independently Verified (OSV.dev)');\nif (ctx.osvEnrichment && ctx.osvEnrichment.length) {\n  for (const o of ctx.osvEnrichment) {\n    if (o.lookupStatus === 'failed') { p(`- **${o.component} ${o.version}**: OSV lookup failed (${o.error})`); continue; }\n    if (o.osvMatchCount === 0) { p(`- **${o.component} ${o.version}**: no OSV.dev matches.`); continue; }\n    const beyond = o.newFindingsBeyondRetire ? ' - **includes CVE(s) retire.js did not report**' : '';\n    p(`- **${o.component} ${o.version}**${beyond}:`);\n    for (const v of o.osvVulns) {\n      p(`  - ${v.id}${v.aliases.length ? ' (' + v.aliases.join(', ') + ')' : ''}${v.severity ? ' - CVSS ' + v.severity : ''}: ${v.summary || ''}`);\n    }\n  }\n} else { p('- No components checked against OSV.dev (no components discovered, or lookup skipped).'); }\np('');\n\np('### SQL Injection Testing (sqlmap)');\nif (!ctx.sqlmapScan || ctx.sqlmapScan.skipped) {\n  p('- Not run.');\n} else if (ctx.sqlmapScan.vulnerable) {\n  const surface = ctx.sqlmapScan.fallbackCrawl ? 'blind homepage crawl (`--crawl=2 --forms`)' : `real discovered parameterized endpoint \\`${(ctx.sqlmapScan.targetsUsed||[])[0]}\\``;\n  p(`- Tested against ${surface}. Result: injectable.`);\n  for (const f of ctx.sqlmapScan.findings) p(`- Parameter \\`${f.parameter}\\`: ${f.type || 'injectable'} - ${f.title || ''}`);\n} else if (ctx.sqlmapScan.fallbackCrawl) {\n  p('- sqlmap fell back to a blind homepage crawl (`--crawl=2 --forms`) because no real parameterized endpoint was discovered by AJAX-spider/JS-bundle extraction to test directly - this is a weak test against a JS-rendered app (its own crawler cannot see client-side-only links) and should not be read as \"the app has no SQL injection,\" only as \"no injectable parameter was found in what this weak crawl reached.\"');\n} else {\n  p(`- Tested the real discovered parameterized endpoint \\`${(ctx.sqlmapScan.targetsUsed||[])[0]}\\` (\\`--level=1 --risk=1\\`) - no injectable parameters found. This is a meaningful negative result since a genuine, observed application request was tested, not a guess.`);\n}\np('');\n\np('### Web Vulnerability Scan (OWASP ZAP)');\nif (!ctx.zapScan || ctx.zapScan.skipped) {\n  p('- Not run.');\n} else if (!ctx.zapScan.reachable) {\n  p(`- Attempted, ZAP unreachable (${ctx.zapScan.reason}).`);\n} else if (ctx.zapScan.alertCount === 0) {\n  p('- ZAP spider + active scan completed, no alerts raised.');\n} else {\n  p(`- ZAP spider complete: ${ctx.zapScan.spiderComplete}, active scan complete: ${ctx.zapScan.activeScanComplete}, ${ctx.zapScan.alertCount} alert(s):`);\n  const byName = {};\n  for (const a of ctx.zapScan.alerts) {\n    byName[a.name] = byName[a.name] || { risk: a.risk, urls: [] };\n    if (byName[a.name].urls.length < 5) byName[a.name].urls.push(a.url);\n  }\n  const socketIoOnly = (urls) => urls.length > 0 && urls.every(u => /\\/socket\\.io\\//i.test(u));\n  for (const [name, info] of Object.entries(byName)) {\n    let note = '';\n    if (/session/i.test(name) && socketIoOnly(info.urls)) {\n      note = ' - **likely false positive**: every affected URL is Socket.IO\\'s own transport handshake (`sid`/`t` query params), not an application authentication session. Do not treat as a stealable user session.';\n    }\n    p(`  - **${name}** (${info.risk}): ${info.urls.join(', ')}${note}`);\n  }\n}\np('');\n\n// --- 8. Testing Coverage & Gaps ---\np('## 8. Testing Coverage & Gaps');\np('');\np('| Category | Tested this scan? |');\np('|---|---|');\np(`| DNS/WHOIS/Subdomain enumeration | Yes |`);\np(`| Port scanning | ${ctx.portScan && !ctx.portScan.skipped ? 'Yes' : 'No - scanIntensity below dns+ports'} |`);\np(`| Security headers / cookie flags | ${ctx.webScan && ctx.webScan.reachable ? 'Yes' : 'No - web target unreachable/not scanned'} |`);\np(`| Content discovery (baselined) | ${ctx.webScan && ctx.webScan.reachable ? 'Yes' : 'No'} |`);\np(`| Vulnerable components (retire.js) | ${ctx.componentFindings !== undefined ? 'Yes' : 'No'} |`);\np(`| Known CVE matches (nmap vulners) | ${ctx.portScan && !ctx.portScan.skipped ? 'Yes' : 'No - port scan not run'} |`);\np(`| TLS/certificate analysis (testssl.sh) | ${ctx.tlsScan && !ctx.tlsScan.skipped ? 'Yes' : 'No - port 443 not open or port scan not run'} |`);\np(`| Cloud/network attribution (ASN, CNAME chain) | ${ctx.attribution ? 'Yes' : 'No'} |`);\np(`| SQL/NoSQL injection (sqlmap) | ${ctx.sqlmapScan && !ctx.sqlmapScan.skipped ? 'Yes' : 'No - toggle off or web unreachable'} |`);\np(`| XSS / broader web vuln scan (ZAP) | ${ctx.zapScan && !ctx.zapScan.skipped && ctx.zapScan.reachable ? 'Yes' : 'No - toggle off, ZAP not running, or web unreachable'} |`);\np(`| AJAX-spider endpoint discovery (real browser, SPA-aware) | ${ctx.webScan && ctx.webScan.ajaxSpiderRan ? 'Yes' : 'No - web target unreachable or scan not run'} |`);\np(`| Broken Authentication (rate-limiting, JWT weaknesses, password reset flaws) | No - requires active authenticated testing not performed by this scan |`);\np(`| Broken Access Control / IDOR | No - requires authenticated, session-aware testing |`);\np(`| Broken Anti-Automation | No - requires repeated-request active testing |`);\np(`| Cryptographic Issues (TLS/cipher grade) | No - not implemented in this scan |`);\np(`| XML External Entities (XXE) | No - requires crafted payloads to file-upload endpoints |`);\np(`| Insecure Deserialization | No - requires crafted payload testing |`);\np(`| Insufficient Logging & Monitoring | Not detectable from external recon - requires server-side log access |`);\np('');\n\nconst fullText = lines.join('\\n');\nconst splitIdx = fullText.indexOf('## 8. Testing Coverage & Gaps');\nconst sections1to5 = splitIdx >= 0 ? fullText.slice(0, splitIdx) : fullText;\nconst section8 = splitIdx >= 0 ? fullText.slice(splitIdx) : '';\nreturn [{ json: { ...ctx, sections1to5, section8 } }];\n"
+    "jsCode": "\nconst ctx = $json;\nconst lines = [];\nconst p = (s='') => lines.push(s);\n\n// --- Deterministic CVE dedup (moved to the top so both the executive\n// summary below and the Section 5 CVE table further down share one\n// computation instead of two). vulners cites the same underlying\n// vulnerability from many sources (packetstorm/metasploit/exploitdb/\n// githubexploit/zdt/etc, each its own entry at the same CVSS) - only\n// entries whose id is an actual CVE number are distinct, uniquely-\n// identified vulnerabilities; everything else is a citation of public\n// exploit tooling *for* one of those CVEs, not a separate finding. Bucket\n// by port+product+version, dedupe real CVEs by their own id (never by CVSS\n// alone - two different CVEs can share a score). vulners does NOT map an\n// exploit-tooling citation to a specific CVE id, so \"which CVE does this\n// exploit target\" is not directly determinable from this data source -\n// matching by exact CVSS score within the same bucket is the closest\n// available correlation, not a guaranteed per-CVE mapping. Verified live\n// against a real multi-CVE target (Apache httpd 2.2.8, 100+ distinct\n// catalogued CVEs) before shipping.\nconst cveHits = [];\nif (ctx.portScan && !ctx.portScan.skipped) {\n  for (const o of ctx.portScan.openPorts) {\n    for (const s of (o.scripts || [])) {\n      if (s.id === 'vulners' && s.cves) {\n        for (const c of s.cves) cveHits.push({ port: o.port, service: o.service, product: o.product, version: o.version, ...c });\n      }\n    }\n  }\n}\nconst isRealCve = (id) => /^CVE-\\d{4}-\\d+$/.test(id || '');\n// Same reconciliation as Extract Findings List (Section 6) - a ZAP SQLi\n// alert that sqlmap already directly tested (same endpoint/parameter) and\n// found negative on should not drive the executive summary or be displayed\n// as an unqualified confirmed finding in Section 5.\nconst sameEndpoint = (urlA, urlB) => {\n  try {\n    const a = new URL(urlA), b = new URL(urlB);\n    return a.origin === b.origin && a.pathname === b.pathname;\n  } catch (e) { return false; }\n};\nconst sqlmapTestedNegative = (url) => {\n  if (!ctx.sqlmapScan || ctx.sqlmapScan.skipped) return false;\n  // Per-endpoint, not gated on the global .vulnerable flag - now that\n  // sqlmap tests up to 10 candidates, one of them can be genuinely\n  // vulnerable while a different one (the one a ZAP alert points at) is\n  // negative, and the reconciliation needs to match on that specific\n  // endpoint, not silently skip because *something else* was vulnerable.\n  return (ctx.sqlmapScan.results || []).some(r => !r.vulnerable && sameEndpoint(r.url, url));\n};\nconst buckets = new Map();\nfor (const c of cveHits) {\n  const key = `${c.port}|${c.product}|${c.version}`;\n  if (!buckets.has(key)) buckets.set(key, { port: c.port, service: c.service, product: c.product, version: c.version, cves: new Map(), exploitCvss: new Set() });\n  const b = buckets.get(key);\n  if (c.isExploit) b.exploitCvss.add(c.cvss);\n  if (isRealCve(c.id)) {\n    const existing = b.cves.get(c.id);\n    if (!existing || c.cvss > existing.cvss) b.cves.set(c.id, { id: c.id, cvss: c.cvss });\n  }\n}\nconst exploitable = [];\nconst researchOnly = [];\nfor (const b of buckets.values()) {\n  for (const cve of b.cves.values()) {\n    const row = { port: b.port, service: b.service, product: b.product, version: b.version, id: cve.id, cvss: cve.cvss };\n    if (b.exploitCvss.has(cve.cvss)) exploitable.push(row); else researchOnly.push(row);\n  }\n}\nexploitable.sort((a, b) => (b.cvss || 0) - (a.cvss || 0));\nresearchOnly.sort((a, b) => (b.cvss || 0) - (a.cvss || 0));\nconst dedupedCves = [\n  ...exploitable.map(c => ({ ...c, exploitable: true })),\n  ...researchOnly.map(c => ({ ...c, exploitable: false })),\n];\n\n// --- Deterministic Executive Risk Summary - no LLM. Severity/count is a\n// pure code operation (max + tie detection), and asking a local model to do\n// this was producing real bugs: an arbitrary low-severity finding named as\n// \"most serious\" while real CVSS-10s sat in the same report, and later, one\n// arbitrary CVSS-10 named out of several tied at the top with no stated\n// tie-break rule. Also surfaces total confirmed-finding count, which is\n// itself a signal worth stating, not just naming one winner. ---\n// Each finding gets a numeric score (CVE: its real CVSS float; everything\n// else: a fixed-point estimate) so the tie-break below can match on the\n// TRUE maximum value, not a coarse word bucket - the first version of this\n// bucketed by severity word (critical/high/medium/low), and on a target\n// like this with dozens of CVEs clustered in the 9.0-10.0 CVSS range, every\n// one of them mapped to \"critical\" and got listed as \"tied,\" producing a\n// useless 29-line executive summary. Matching the exact score instead\n// surfaces only genuine ties (e.g. three real CVSS-10s), with the rest\n// folded into the severity-band counts.\nconst riskWordForScore = (score) => score >= 9 ? 'critical' : score >= 7 ? 'high' : score >= 4 ? 'medium' : 'low';\nconst summaryFindings = [];\nfor (const c of dedupedCves) {\n  summaryFindings.push({ label: `${c.product || 'unknown'} ${c.version || ''} (port ${c.port}, ${c.id})`.replace(/\\s+/g, ' ').trim(), score: c.cvss || 0 });\n}\nconst componentSevScore = { critical: 10, high: 8, medium: 5, low: 2 };\nfor (const c of (ctx.componentFindings || [])) {\n  summaryFindings.push({ label: `${c.component} ${c.version} (vulnerable component${c.cve && c.cve.length ? ', ' + c.cve.join(', ') : ''})`, score: componentSevScore[(c.severity || 'medium').toLowerCase()] || 5 });\n}\nfor (const r of ((ctx.sqlmapScan && ctx.sqlmapScan.results) || [])) {\n  if (r.vulnerable) summaryFindings.push({ label: `Confirmed SQL injection (sqlmap): ${r.url}`, score: 10 });\n}\nif (ctx.zapScan && !ctx.zapScan.skipped && ctx.zapScan.reachable) {\n  const zapByName = new Map();\n  for (const a of (ctx.zapScan.alerts || [])) {\n    const g = zapByName.get(a.name) || { risk: a.risk, urls: [] };\n    g.urls.push(a.url);\n    zapByName.set(a.name, g);\n  }\n  for (const [name, info] of zapByName) {\n    const contradicted = /sql injection/i.test(name) && info.urls.some(u => sqlmapTestedNegative(u));\n    if (contradicted) continue;\n    summaryFindings.push({ label: `ZAP alert: ${name}`, score: componentSevScore[(info.risk || 'medium').toLowerCase()] || 5 });\n  }\n}\nfor (const f of (ctx.sensitiveFileExposures || [])) {\n  if (f.confirmed) summaryFindings.push({ label: `Exposed sensitive file: ${f.path}`, score: 8 });\n}\nconst totalConfirmed = summaryFindings.length;\nlet escalationRecommendation;\nif (!totalConfirmed) {\n  escalationRecommendation = 'No confirmed findings within what was tested.';\n} else {\n  const bandCounts = { critical: 0, high: 0, medium: 0, low: 0 };\n  for (const f of summaryFindings) bandCounts[riskWordForScore(f.score)]++;\n  const bandSummary = Object.entries(bandCounts).filter(([, n]) => n > 0).map(([w, n]) => `${n} ${w}`).join(', ');\n  const maxScore = Math.max(...summaryFindings.map(f => f.score));\n  const maxWord = riskWordForScore(maxScore);\n  const topFindings = summaryFindings.filter(f => f.score === maxScore);\n  const tieNote = topFindings.length > 1\n    ? `${topFindings.length} confirmed findings tied at the highest severity (${maxWord}, score ${maxScore}): ${topFindings.map(f => f.label).join('; ')}`\n    : `The most serious confirmed finding is ${topFindings[0].label} (${maxWord}, score ${maxScore})`;\n  escalationRecommendation = `${tieNote}. ${totalConfirmed} confirmed finding(s) total this run (${bandSummary}). Overall risk level: ${maxWord}.`;\n}\n\n// --- 1. MITRE ATT&CK Reconnaissance (TA0043) Coverage ---\np('## 1. MITRE ATT&CK Reconnaissance (TA0043) Coverage');\np('');\np('| Technique | Name | Status |');\np('|---|---|---|');\nfor (const c of (ctx.attckCoverage || [])) p(`| ${c.technique} | ${c.name} | ${c.status} |`);\np('');\np('Out of scope: T1589/T1591/T1593.001/T1598 (people/social engineering, explicitly excluded). T1597 (Search Closed Sources) requires paid threat-intel access not available in this platform.');\np('');\n\n// --- 2. Attack Surface Summary ---\np('## 2. Attack Surface Summary');\np('');\np(`- Target: \\`${ctx.target}\\` (resolved IP: \\`${ctx.resolvedIp || 'none'}\\`)`);\np(`- Subdomains discovered: ${(ctx.subdomains || []).length}`);\nconst openPortsList = (ctx.portScan && !ctx.portScan.skipped) ? ctx.portScan.openPorts.map(o => `${o.port}/${o.protocol} (${o.service})`).join(', ') : 'port scan not run';\np(`- Open ports: ${openPortsList || 'none found'}`);\np(`- Web application reachable: ${ctx.webScan ? (ctx.webScan.reachable ? 'yes, at ' + ctx.webScan.origin : 'no') : 'not attempted'}`);\np('');\n\n// --- Target Profile (deterministic synthesis from attribution/header/cookie\n// evidence already collected elsewhere - no new probing, no LLM). Only states\n// what's confidently evidenced; silent (not a guess) on anything it isn't. ---\nconst attr = ctx.attribution || {};\nconst profileParts = [];\nif (attr.cloudProvider && attr.cloudProvider !== 'other/unknown') {\n  let hosting = `hosted on ${attr.cloudProvider}`;\n  if (attr.azureRegion) hosting += ` (${attr.azureRegion})`;\n  profileParts.push(hosting);\n} else if (attr.asnOrgName) {\n  profileParts.push(`hosted at ${attr.asnOrgName}`);\n}\nconst _headers = (ctx.webScan && ctx.webScan.headers) || {};\nconst _h = (name) => _headers[name] || _headers[name.toLowerCase()] || _headers[name.toUpperCase()];\nconst cfDetected = !!_h('cf-ray');\nif (cfDetected) profileParts.push('fronted by Cloudflare');\nconst cookieNames = ((ctx.webScan && ctx.webScan.cookies) || []).map(c => c.name.toLowerCase());\nlet language = null;\nif (cookieNames.some(n => n.includes('jsessionid'))) language = 'Java';\nelse if (cookieNames.some(n => n.includes('phpsessid'))) language = 'PHP';\nelse if (cookieNames.some(n => n.includes('asp.net_sessionid') || n.includes('aspsessionid'))) language = '.NET';\nconst serverHeader = _h('server');\nconst poweredBy = _h('x-powered-by');\nif (!language && poweredBy) language = poweredBy;\nif (language) profileParts.push(`${language}-based`);\nelse if (serverHeader) profileParts.push(`served by ${serverHeader}`);\nif (attr.hostingModelHint) profileParts.push(attr.hostingModelHint);\nif (profileParts.length) {\n  p(`**Target Profile:** ${ctx.target} appears to be ${profileParts.join(', ')}.`);\n  p('');\n}\n\np(`**Executive Risk Summary:** ${escalationRecommendation}`);\n// Deterministic scan-coverage disclosure - a \"low\"/\"no findings\" verdict\n// from a dns+ports-only run means something very different from the same\n// verdict after a full dns+ports+web+sqlmap+zap run.\nconst covRan = [];\nconst covNotRun = [];\n(ctx.portScan && !ctx.portScan.skipped ? covRan : covNotRun).push('port scan');\n(ctx.tlsScan && !ctx.tlsScan.skipped ? covRan : covNotRun).push('TLS/certificate analysis');\n(ctx.attribution ? covRan : covNotRun).push('cloud/network attribution');\n(ctx.webScan && ctx.webScan.reachable ? covRan : covNotRun).push('web crawl/content discovery');\n(ctx.webScan && ctx.webScan.ajaxSpiderRan ? covRan : covNotRun).push('AJAX-spider endpoint discovery');\n(ctx.sqlmapScan && !ctx.sqlmapScan.skipped ? covRan : covNotRun).push('SQL injection testing (sqlmap)');\n(ctx.zapScan && !ctx.zapScan.skipped && ctx.zapScan.reachable ? covRan : covNotRun).push('full web vulnerability scan (ZAP)');\nlet covLine = `_Scan coverage: ${covRan.length ? covRan.join(', ') : 'DNS/subdomain enumeration only'} run.`;\nif (covNotRun.length) covLine += ` Not run: ${covNotRun.join(', ')} - a clean result above reflects only what was actually tested, not a guarantee those areas are clean.`;\ncovLine += '_';\np(covLine);\np('');\n\n// --- 3. DNS, WHOIS & Subdomains ---\np('## 3. DNS, WHOIS & Subdomains');\np('');\nconst dns = ctx.dns || {};\nfor (const rt of ['A','AAAA','MX','NS','TXT','SOA']) {\n  const vals = dns[rt] || [];\n  p(`- **${rt}**: ${vals.length ? vals.join(', ') : 'none'}`);\n}\nconst whoisKeys = Object.keys(ctx.whois || {});\np(`- **WHOIS**: ${whoisKeys.length ? whoisKeys.map(k => `${k}: ${ctx.whois[k]}`).join('; ') : 'no data returned'}`);\np(`- **Subdomains**: ${(ctx.subdomains || []).length ? ctx.subdomains.join(', ') : 'none discovered'}`);\np('');\n\n// --- 4. Open Ports & Services ---\np('## 4. Open Ports & Services');\np('');\nif (!ctx.portScan || ctx.portScan.skipped) {\n  p(`Port scan not run (${ctx.portScan ? ctx.portScan.reason : 'scan intensity too low'}).`);\n} else if (!ctx.portScan.openPorts.length) {\n  p('Port scan ran, no open ports found in the scanned range.');\n} else {\n  p('| Port | Protocol | Service (nmap-identified) | Product/Version |');\n  p('|---|---|---|---|');\n  for (const o of ctx.portScan.openPorts) p(`| ${o.port} | ${o.protocol} | ${o.service} | ${o.product ? (o.product + (o.version ? ' ' + o.version : '')) : 'not detected'} |`);\n  p('');\n  p('#### Per-Port Script Findings');\n  const knownSecurityChecks = {\n    'ftp-anon': { label: 'Anonymous FTP login', positive: 'Anonymous login allowed', negative: 'Anonymous login not allowed' },\n    'smb-os-discovery': { label: 'SMB OS discovery', positive: null, negative: 'No SMB service / discovery produced no data' },\n  };\n  let anyScriptOutput = false;\n  for (const o of ctx.portScan.openPorts) {\n    const nonVulnersScripts = (o.scripts || []).filter(s => s.id !== 'vulners');\n    const ranIds = new Set(nonVulnersScripts.map(s => s.id));\n    for (const [scriptId, meta] of Object.entries(knownSecurityChecks)) {\n      if (o.service !== 'ftp' && scriptId === 'ftp-anon') continue;\n      const hit = nonVulnersScripts.find(s => s.id === scriptId);\n      anyScriptOutput = true;\n      if (hit) {\n        p(`- Port ${o.port} (\\`${scriptId}\\`): **${meta.positive || hit.output}** - \\`${hit.output}\\``);\n      } else if (o.service === 'ftp' || scriptId !== 'ftp-anon') {\n        p(`- Port ${o.port} (\\`${scriptId}\\`): tested, no positive result - ${meta.negative}.`);\n      }\n    }\n    for (const s of nonVulnersScripts) {\n      if (knownSecurityChecks[s.id]) continue;\n      anyScriptOutput = true;\n      p(`- Port ${o.port} (\\`${s.id}\\`): ${s.output}`);\n    }\n  }\n  if (!anyScriptOutput) p('- No NSE script findings for any open port.');\n}\np('');\n\n// --- 5. Confirmed Findings (Evidence-Backed) ---\np('## 5. Confirmed Findings');\np('');\nif (ctx.webScan && ctx.webScan.reachable) {\n  const ws = ctx.webScan;\n  p('### Missing Security Headers');\n  if (ws.securityHeaders.missing.length) {\n    for (const h of ws.securityHeaders.missing) p(`- \\`${h}\\`: not set`);\n  } else { p('- None missing - all checked headers present.'); }\n  p('');\n  p('### Cookies');\n  if (ws.cookies.length) {\n    for (const c of ws.cookies) p(`- \\`${c.name}\\`: Secure=${c.secure}, HttpOnly=${c.httpOnly}, SameSite=${c.sameSite}`);\n  } else { p('- No cookies observed.'); }\n  p('');\n  p('### Content Discovery (baselined - soft-404s already excluded)');\n  const hits = (ws.contentDiscovery || []).filter(r => r.distinctFromBaseline);\n  if (hits.length) {\n    p('| Path | Status | Source |');\n    p('|---|---|---|');\n    for (const h of hits) p(`| \\`${h.path}\\` | ${h.status} | ${h.fromAjaxSpider ? 'observed via AJAX spider' : (h.fromJsBundle ? 'discovered in JS bundle (not linked anywhere)' : 'wordlist')} |`);\n  } else { p(`- No genuine hits out of ${(ws.contentDiscovery || []).length} paths checked (all matched the site's baseline/soft-404 response).`); }\n  p('');\n  p('### Technology Fingerprint');\n  if (ws.fingerprint && ws.fingerprint.evidenceStrings.length) {\n    for (const e of ws.fingerprint.evidenceStrings.slice(0, 15)) p(`- ${e}`);\n  } else { p('- No fingerprint evidence collected.'); }\n  p('');\n  p('### Forms / Parameter Surface');\n  if (ws.forms && ws.forms.length) {\n    for (const f of ws.forms) p(`- \\`${f.method} ${f.action}\\` - fields: ${f.fields.join(', ')} (page: ${f.page})`);\n  } else { p('- No server-rendered \\\\<form\\\\> elements found (common for JS-driven SPAs - the real submit targets are the discovered API paths above, not HTML forms).'); }\n  p('');\n} else {\n  p(`Web scan not reachable/not run - ${ctx.webScan ? ctx.webScan.reason : 'no web target'}.`);\n  p('');\n}\n\np('### Cloud/Network Attribution');\nconst attrFindings = ctx.attribution || {};\np(`- Resolved IP: \\`${attrFindings.resolvedIp || 'not resolved'}\\``);\np(`- ASN: ${attrFindings.asn || 'unknown'}${attrFindings.asnOrgName ? ' (' + attrFindings.asnOrgName + ')' : ''}${attrFindings.asnCountry ? ', ' + attrFindings.asnCountry : ''}`);\np(`- Cloud provider (ASN-based attribution): ${attrFindings.cloudProvider || 'other/unknown'}${attrFindings.azureRegion ? ' - region: ' + attrFindings.azureRegion : ''}`);\nif (attrFindings.hostingModelHint) p(`- Hosting model signal: ${attrFindings.hostingModelHint}`);\nif (attrFindings.cnameChain && attrFindings.cnameChain.length) {\n  p(`- CNAME chain: ${attrFindings.cnameChain.join(' -> ')}`);\n}\np('');\n\np('### TLS/Certificate Analysis (testssl.sh)');\nif (!ctx.tlsScan || ctx.tlsScan.skipped) {\n  p('- Not run.');\n} else if (ctx.tlsScan.ranButNoOutput) {\n  p('- testssl.sh ran but produced no parseable output this run (transient failure or timeout) - not a confirmed clean result, worth a manual re-check.');\n} else if (ctx.tlsScan.findingCount === 0) {\n  p('- testssl.sh ran, no LOW/MEDIUM/HIGH/CRITICAL findings (protocol/cipher/cert issues) - certificate SANs below still captured regardless.');\n} else {\n  for (const f of ctx.tlsScan.findings) {\n    p(`- **${f.severity}** (\\`${f.id}\\`)${f.cve ? ' [' + f.cve + ']' : ''}: ${f.finding}`);\n  }\n}\nif (ctx.tlsScan && ctx.tlsScan.certSans && ctx.tlsScan.certSans.length) {\n  p(`- Certificate SANs: ${ctx.tlsScan.certSans.join(', ')}`);\n}\np('');\n\np('### Known Vulnerabilities (CVE Matches, via nmap vulners)');\nconst renderCveTable = (rows) => {\n  p('| Port | Product/Version | CVE | CVSS |');\n  p('|---|---|---|---|');\n  for (const c of rows) p(`| ${c.port}/${c.service} | ${c.product || 'unknown'} ${c.version || ''} | ${isRealCve(c.id) ? `[${c.id}](https://vulners.com/cve/${c.id})` : c.id} | ${c.cvss ?? 'n/a'} |`);\n};\nif (exploitable.length || researchOnly.length) {\n  p('#### Vulnerabilities with Known Public Exploit');\n  if (exploitable.length) renderCveTable(exploitable); else p('- None.');\n  p('');\n  p('#### Vulns with No Known Public Exploit');\n  if (researchOnly.length) renderCveTable(researchOnly); else p('- None.');\n} else {\n  p('- nmap vulners ran against every open port with an identified product/version (CPE), no known CVEs matched. This does not rule out unknown/0-day issues, only means no *known, catalogued* CVE matches the detected product/version.');\n}\np('');\n\np('### Exposed Sensitive Files');\nif (ctx.sensitiveFileExposures && ctx.sensitiveFileExposures.length) {\n  for (const f of ctx.sensitiveFileExposures) {\n    if (f.confirmed) {\n      p(`- **\\`${f.path}\\`** (found via ${f.source}, HTTP ${f.status}, ${f.length} bytes) - actual content fetched:`);\n      p('  ```');\n      p('  ' + f.excerpt.replace(/\\n/g, '\\n  ').slice(0, 1000));\n      p('  ```');\n    } else {\n      p(`- \\`${f.path}\\` flagged by ${f.source} - worth checking manually: \\`curl -i '${f.url}'\\`.`);\n    }\n  }\n} else {\n  p('- No backup/config/source-control-pattern files (`.bak`, `.env`, `.git/`, etc.) referenced by discovered paths or ZAP-flagged URLs.');\n}\np('');\n\np('### Vulnerable Components (retire.js against fetched JS bundle)');\nif (ctx.componentFindings && ctx.componentFindings.length) {\n  for (const c of ctx.componentFindings) {\n    p(`- **${c.component} ${c.version}** - severity ${c.severity}${c.cve.length ? ', ' + c.cve.join(', ') : ''}: ${c.summary || 'see info links'}`);\n  }\n} else { p('- retire.js scan ran, no known-vulnerable component versions matched.'); }\np('');\n\np('### Vulnerable Components - Independently Verified (OSV.dev)');\nif (ctx.osvEnrichment && ctx.osvEnrichment.length) {\n  for (const o of ctx.osvEnrichment) {\n    if (o.lookupStatus === 'failed') { p(`- **${o.component} ${o.version}**: OSV lookup failed (${o.error})`); continue; }\n    if (o.osvMatchCount === 0) { p(`- **${o.component} ${o.version}**: no OSV.dev matches.`); continue; }\n    const beyond = o.newFindingsBeyondRetire ? ' - **includes CVE(s) retire.js did not report**' : '';\n    p(`- **${o.component} ${o.version}**${beyond}:`);\n    for (const v of o.osvVulns) {\n      p(`  - ${v.id}${v.aliases.length ? ' (' + v.aliases.join(', ') + ')' : ''}${v.severity ? ' - CVSS ' + v.severity : ''}: ${v.summary || ''}`);\n    }\n  }\n} else { p('- No components checked against OSV.dev (no components discovered, or lookup skipped).'); }\np('');\n\np('### SQL Injection Testing (sqlmap)');\nif (!ctx.sqlmapScan || ctx.sqlmapScan.skipped) {\n  p('- Not run.');\n} else if (ctx.sqlmapScan.fallbackCrawl) {\n  const r = (ctx.sqlmapScan.results || [])[0];\n  if (r && r.vulnerable) {\n    p('- sqlmap fell back to a blind homepage crawl (`--crawl=2 --forms`) because no real parameterized endpoint was discovered by AJAX-spider/JS-bundle extraction to test directly. Result: injectable.');\n    for (const f of r.findings) p(`- Parameter \\`${f.parameter}\\`: ${f.type || 'injectable'} - ${f.title || ''}`);\n  } else {\n    p('- sqlmap fell back to a blind homepage crawl (`--crawl=2 --forms`) because no real parameterized endpoint was discovered by AJAX-spider/JS-bundle extraction to test directly - this is a weak test against a JS-rendered app (its own crawler cannot see client-side-only links) and should not be read as \"the app has no SQL injection,\" only as \"no injectable parameter was found in what this weak crawl reached.\"');\n  }\n} else {\n  p(`- Tested the top ${ctx.sqlmapScan.testedCount} of ${ctx.sqlmapScan.candidateCount} discovered candidate parameterized endpoint(s) (\\`--level=1 --risk=1\\` each) - a clean result only covers what was actually tested, not every endpoint discovered.`);\n  for (const r of (ctx.sqlmapScan.results || [])) {\n    const label = r.method === 'POST' ? `${r.url} [POST]` : r.url;\n    if (r.vulnerable) {\n      p(`- **\\`${label}\\`**: injectable.`);\n      for (const f of r.findings) p(`  - Parameter \\`${f.parameter}\\`: ${f.type || 'injectable'} - ${f.title || ''}`);\n    } else {\n      p(`- \\`${label}\\`: no injectable parameters found.`);\n    }\n  }\n}\np('');\n\np('### Web Vulnerability Scan (OWASP ZAP)');\nif (!ctx.zapScan || ctx.zapScan.skipped) {\n  p('- Not run.');\n} else if (!ctx.zapScan.reachable) {\n  p(`- Attempted, ZAP unreachable (${ctx.zapScan.reason}).`);\n} else if (ctx.zapScan.alertCount === 0) {\n  p('- ZAP spider + active scan completed, no alerts raised.');\n} else {\n  p(`- ZAP spider complete: ${ctx.zapScan.spiderComplete}, active scan complete: ${ctx.zapScan.activeScanComplete}, ${ctx.zapScan.alertCount} alert(s):`);\n  const byName = {};\n  for (const a of ctx.zapScan.alerts) {\n    byName[a.name] = byName[a.name] || { risk: a.risk, urls: [] };\n    if (byName[a.name].urls.length < 5) byName[a.name].urls.push(a.url);\n  }\n  const socketIoOnly = (urls) => urls.length > 0 && urls.every(u => /\\/socket\\.io\\//i.test(u));\n  for (const [name, info] of Object.entries(byName)) {\n    let note = '';\n    if (/session/i.test(name) && socketIoOnly(info.urls)) {\n      note = ' - **likely false positive**: every affected URL is Socket.IO\\'s own transport handshake (`sid`/`t` query params), not an application authentication session. Do not treat as a stealable user session.';\n    } else if (/sql injection/i.test(name) && info.urls.some(u => sqlmapTestedNegative(u))) {\n      note = ' - **contradicted by direct testing**: sqlmap tested this exact endpoint/parameter directly (see SQL Injection Testing section above) and found no injectable parameter. This is ZAP\\'s active-scan heuristic, not a confirmed finding - excluded from the executive summary for this reason.';\n    }\n    p(`  - **${name}** (${info.risk}): ${info.urls.join(', ')}${note}`);\n  }\n}\np('');\n\n// --- 8. Testing Coverage & Gaps ---\n\np('### WordPress (wpscan)');\nconst wp = ctx.wpscanScan;\nif (!wp || wp.skipped) {\n  p(`- Not run (${wp ? wp.reason : 'target not identified as WordPress'}).`);\n} else if (!wp.ran) {\n  p(`- wpscan did not complete: ${wp.error || 'unknown error'}.`);\n} else {\n  p(`- Core: WordPress ${wp.coreVersion || 'version not determined'}${wp.coreStatus ? ' (' + wp.coreStatus + ')' : ''}.`);\n  for (const v of (wp.coreVulns || [])) p(`  - **${v.title}**${v.fixedIn ? ' (fixed in ' + v.fixedIn + ')' : ''}${v.refs && v.refs.length ? ' - ' + v.refs.join(', ') : ''}`);\n  if (wp.mainTheme && wp.mainTheme.slug) {\n    p(`- Active theme: \\`${wp.mainTheme.slug}\\`${wp.mainTheme.version ? ' ' + wp.mainTheme.version : ''}${wp.mainTheme.outdated ? ' - **outdated**' : ''}.`);\n    for (const v of (wp.mainTheme.vulns || [])) p(`  - **${v.title}**${v.fixedIn ? ' (fixed in ' + v.fixedIn + ')' : ''}`);\n  }\n  p(`- Plugins detected (passive): ${wp.plugins && wp.plugins.length ? wp.plugins.map(pl => '\\`' + pl.slug + '\\`' + (pl.version ? ' ' + pl.version : '')).join(', ') : 'none found'}.`);\n  for (const pl of (wp.plugins || [])) {\n    for (const v of (pl.vulns || [])) p(`  - \\`${pl.slug}\\`: **${v.title}**${v.fixedIn ? ' (fixed in ' + v.fixedIn + ')' : ''}${v.refs && v.refs.length ? ' - ' + v.refs.join(', ') : ''}`);\n  }\n  if (wp.users && wp.users.length) p(`- Users enumerated: ${wp.users.map(u => '\\`' + u + '\\`').join(', ')}.`);\n  const wpExp = [];\n  if (wp.xmlrpcEnabled) wpExp.push('XML-RPC enabled (\\`/xmlrpc.php\\`) - pingback SSRF and \\`system.multicall\\` credential-bruteforce amplification vector');\n  if (wp.readmeExposed) wpExp.push('\\`/readme.html\\` accessible (version disclosure)');\n  if (wp.uploadDirListing) wpExp.push('\\`wp-content/uploads/\\` directory listing enabled');\n  for (const b of (wp.configBackups || [])) wpExp.push('config backup exposed: ' + b);\n  for (const e of (wp.dbExports || [])) wpExp.push('database export exposed: ' + e);\n  if (wpExp.length) { p('- Exposures:'); for (const e of wpExp) p(`  - ${e}`); }\n  if (!wp.vulnDataAvailable) p('- _No WPScan API token configured - component versions were enumerated but known-vulnerability lookup for the detected core/plugins/themes was skipped. A clean result here means \"not checked\", not \"no known vulns\"._');\n}\np('');\n\np('## 8. Testing Coverage & Gaps');\np('');\np('| Category | Tested this scan? |');\np('|---|---|');\np(`| DNS/WHOIS/Subdomain enumeration | Yes |`);\np(`| Port scanning | ${ctx.portScan && !ctx.portScan.skipped ? 'Yes' : 'No - scanIntensity below dns+ports'} |`);\np(`| Security headers / cookie flags | ${ctx.webScan && ctx.webScan.reachable ? 'Yes' : 'No - web target unreachable/not scanned'} |`);\np(`| Content discovery (baselined) | ${ctx.webScan && ctx.webScan.reachable ? 'Yes' : 'No'} |`);\np(`| Vulnerable components (retire.js) | ${ctx.componentFindings !== undefined ? 'Yes' : 'No'} |`);\np(`| Known CVE matches (nmap vulners) | ${ctx.portScan && !ctx.portScan.skipped ? 'Yes' : 'No - port scan not run'} |`);\np(`| TLS/certificate analysis (testssl.sh) | ${ctx.tlsScan && !ctx.tlsScan.skipped ? 'Yes' : 'No - port 443 not open or port scan not run'} |`);\np(`| Cloud/network attribution (ASN, CNAME chain) | ${ctx.attribution ? 'Yes' : 'No'} |`);\np(`| SQL/NoSQL injection (sqlmap) | ${ctx.sqlmapScan && !ctx.sqlmapScan.skipped ? 'Yes' : 'No - toggle off or web unreachable'} |`);\np(`| XSS / broader web vuln scan (ZAP) | ${ctx.zapScan && !ctx.zapScan.skipped && ctx.zapScan.reachable ? 'Yes' : 'No - toggle off, ZAP not running, or web unreachable'} |`);\np(`| WordPress-specific scan (wpscan) | ${ctx.wpscanScan && ctx.wpscanScan.ran ? 'Yes' : (ctx.wpscanScan && ctx.wpscanScan.skipped ? 'No - ' + ctx.wpscanScan.reason : 'No - not WordPress or toggle off')} |`);\np(`| AJAX-spider endpoint discovery (real browser, SPA-aware) | ${ctx.webScan && ctx.webScan.ajaxSpiderRan ? 'Yes' : 'No - web target unreachable or scan not run'} |`);\np(`| Broken Authentication (rate-limiting, JWT weaknesses, password reset flaws) | No - requires active authenticated testing not performed by this scan |`);\np(`| Broken Access Control / IDOR | No - requires authenticated, session-aware testing |`);\np(`| Broken Anti-Automation | No - requires repeated-request active testing |`);\np(`| Cryptographic Issues (TLS/cipher grade) | No - not implemented in this scan |`);\np(`| XML External Entities (XXE) | No - requires crafted payloads to file-upload endpoints |`);\np(`| Insecure Deserialization | No - requires crafted payload testing |`);\np(`| Insufficient Logging & Monitoring | Not detectable from external recon - requires server-side log access |`);\np('');\n\nconst fullText = lines.join('\\n');\nconst splitIdx = fullText.indexOf('## 8. Testing Coverage & Gaps');\nconst sections1to5 = splitIdx >= 0 ? fullText.slice(0, splitIdx) : fullText;\nconst section8 = splitIdx >= 0 ? fullText.slice(splitIdx) : '';\n\nreturn [{ json: { ...ctx, sections1to5, section8, dedupedCves } }];\n"
    },
    "id": "ac68227e-210e-45fd-9b22-14743380c2e5",
    "name": "Build Deterministic Report Sections",
@@ -601,54 +599,6 @@
   },
   {
    "parameters": {
-    "model": "qwen3:8b",
-    "options": {}
-   },
-   "id": "779a1eaa-a5a9-418a-99df-4dbe9deb43d3",
-   "name": "Ollama Chat Model (Reasoning)",
-   "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-   "typeVersion": 1,
-   "position": [
-    3208,
-    464
-   ],
-   "credentials": {
-    "ollamaApi": {
-     "id": "DEj011iqClsQL6Jm",
-     "name": "Recon Platform Ollama"
-    }
-   }
-  },
-  {
-   "parameters": {
-    "promptType": "define",
-    "text": "=Answer in exactly one sentence, no preamble, no thinking out loud, plain text only. This is the result of the tests that were actually run against {{$json.target}} (a scan-coverage line separately discloses which tests those were - do not restate or reference it, just don't imply more was tested than what's given to you here). Given those findings: open ports {{ JSON.stringify($json.portScan) }}, known CVE matches (deduped, sorted by severity, top 8) {{ JSON.stringify($json.cveSummary || []) }}, vulnerable components {{ JSON.stringify($json.componentFindings) }}, sqlmap result {{ JSON.stringify($json.sqlmapScan) }}, ZAP alert count and top risks {{ $json.zapScan && $json.zapScan.alerts ? $json.zapScan.alerts.length + ' alerts, risks: ' + [...new Set($json.zapScan.alerts.map(a=>a.risk))].join(', ') : 'not run' }}, exposed sensitive files {{ JSON.stringify(($json.sensitiveFileExposures||[]).map(f=>({path:f.path,confirmed:f.confirmed}))) }} - write the executive risk summary for the top of this report, in exactly one sentence, no more. A CVE match in the known-CVE-matches list on its own counts as a confirmed finding - vulners matching a real, catalogued CVE to the exact detected product/version is itself the confirmation, it does not need separate active verification the way a sqlmap/ZAP/sensitive-file result would. If there is at least one confirmed finding of any kind (a CVE match, a vulnerable component, a confirmed sqlmap injection, a ZAP alert, or a confirmed sensitive file exposure), state only two things: the single most serious one, specifically (not a category), with its port/CVSS if it's a CVE match; and the overall risk level in one plain word (low/medium/high/critical) based only on that finding. If there are zero confirmed findings, do not say \"low risk\" or any other risk word - say exactly \"No confirmed findings within what was tested.\" and nothing else, since a clean result only describes what was actually run, not the target's real risk. Do not add justification, a reason it matters, a recommendation, urgency language, or commentary on what was or wasn't tested. Do not speculate about anything not listed above.",
-    "batching": {}
-   },
-   "id": "8cfeee83-ed87-4c52-9efc-c7d49a7c1a0c",
-   "name": "Escalation Reasoning",
-   "type": "@n8n/n8n-nodes-langchain.chainLlm",
-   "typeVersion": 1.7,
-   "position": [
-    3136,
-    240
-   ]
-  },
-  {
-   "parameters": {
-    "jsCode": "\nconst ctx = $('Fetch Sensitive File Excerpts').item.json;\nlet text = $json.text || $json.output || '';\ntext = text.replace(/^[\\s\\S]*?<\\/think>\\s*/i, '').trim();\nif (text.length > 400) {\n  const chunks = text.split(/\\n+/).map(c => c.trim()).filter(Boolean);\n  if (chunks.length > 1) text = chunks[chunks.length - 1];\n}\nreturn [{ json: { ...ctx, escalationRecommendation: text || '(no summary generated)' } }];\n"
-   },
-   "id": "b0830a14-9252-45f0-b8e9-d62bcfd55235",
-   "name": "Capture Escalation Reasoning",
-   "type": "n8n-nodes-base.code",
-   "typeVersion": 2,
-   "position": [
-    3488,
-    240
-   ]
-  },
-  {
-   "parameters": {
     "jsCode": "\nconst ctx = $json;\nconst ws = ctx.webScan;\nif (!ws || !ws.reachable) { return [{ json: ctx }]; }\nconst zapBase = 'http://zap:8090';\nconst targetUrl = ws.origin + '/';\nconst call = async (path) => {\n  try {\n    return await this.helpers.httpRequest({ method: 'GET', url: `${zapBase}${path}`, timeout: 10000, json: true });\n  } catch (e) { return null; }\n};\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\n\nconst started = await call(`/JSON/ajaxSpider/action/scan/?url=${encodeURIComponent(targetUrl)}`);\nlet status = 'stopped';\nif (started && started.Result === 'OK') {\n  status = 'running';\n  let polls = 0;\n  while (status !== 'stopped' && polls < 20) {\n    await sleep(5000);\n    const s = await call('/JSON/ajaxSpider/view/status/');\n    status = s ? s.status : 'stopped';\n    polls++;\n  }\n}\n\nconst resultsRes = await call('/JSON/ajaxSpider/view/results/?start=0&count=500');\nconst raw = (resultsRes && resultsRes.results) || [];\n\n// Real-time/protocol paths (Socket.IO, webpack HMR, etc.) generate many\n// near-duplicate requests differing only by a volatile handshake token\n// (t=/sid=) - collapse those into one representative entry per path instead\n// of flooding the report with dozens of \"distinct\" findings that are really\n// the same one fact (\"this app uses Socket.IO\").\nconst infraPathRe = /\\/(socket\\.io|sockjs-node|__webpack_hmr|hot-update)\\//i;\nconst infraParamRe = /^(EIO|transport|sid|t|callback|jsonp)$/i;\nfunction normalizeForDedup(url) {\n  const [base, qs] = url.split('?');\n  if (!infraPathRe.test(base) || !qs) return url;\n  const kept = qs.split('&').filter(p => !infraParamRe.test(p.split('=')[0]));\n  return kept.length ? base + '?' + kept.join('&') : base;\n}\n\nconst seen = new Set();\nconst discovered = [];\nfor (const r of raw) {\n  const line = (r.requestHeader || '').split('\\r\\n')[0] || '';\n  const m = line.match(/^(GET|POST|PUT|DELETE)\\s+(\\S+)/);\n  if (!m) continue;\n  const method = m[1];\n  const url = m[2];\n  if (!url.startsWith(ws.origin)) continue;\n  const dedupKey = method + ' ' + normalizeForDedup(url);\n  if (seen.has(dedupKey)) continue;\n  seen.add(dedupKey);\n  discovered.push({ method, url, body: r.requestBody || '' });\n}\n\nconst existingPaths = new Set((ws.contentDiscovery || []).map(p => p.path));\nconst newContentEntries = [];\nfor (const d of discovered) {\n  const path = d.url.slice(ws.origin.length) || '/';\n  const bareePath = path.split('?')[0];\n  if (existingPaths.has(bareePath) || existingPaths.has(path)) continue;\n  existingPaths.add(path);\n  newContentEntries.push({ path, status: 'observed', distinctFromBaseline: true, fromAjaxSpider: true });\n}\n\nconst parameterizedRequests = discovered.filter(d => {\n  const qIdx = d.url.indexOf('?');\n  const hasQuery = qIdx >= 0 && d.url.length > qIdx + 1;\n  return hasQuery || (d.method === 'POST' && d.body);\n});\n\nreturn [{ json: { ...ctx, webScan: {\n  ...ws,\n  contentDiscovery: [...(ws.contentDiscovery || []), ...newContentEntries],\n  ajaxSpiderRan: true,\n  ajaxSpiderUrlsObserved: discovered.length,\n  ajaxParameterizedRequests: parameterizedRequests,\n} } }];\n"
    },
    "id": "a2000000-0000-4000-8000-000000000001",
@@ -675,7 +625,7 @@
   },
   {
    "parameters": {
-    "jsCode": "const ctx = $json;\nconst findings = [];\n\nif (ctx.webScan && ctx.webScan.reachable && ctx.webScan.securityHeaders && ctx.webScan.securityHeaders.missing.length) {\n  findings.push({\n    category: 'Missing Security Headers',\n    name: 'Missing Security Headers',\n    detail: `Missing on ${ctx.webScan.origin}: ${ctx.webScan.securityHeaders.missing.join(', ')}.`,\n  });\n}\n\nif (ctx.webScan && ctx.webScan.contentDiscovery) {\n  const hits = ctx.webScan.contentDiscovery.filter(h => h.distinctFromBaseline);\n  if (hits.length) {\n    const sample = hits.slice(0, 15).map(h => h.path).join(', ');\n    findings.push({\n      category: 'Content Discovery',\n      name: 'Content Discovery - API/Directory Surface',\n      detail: `${hits.length} genuine paths discovered on ${ctx.webScan.origin} (sample: ${sample}${hits.length > 15 ? ', ...' : ''}).`,\n    });\n  }\n}\n\nif (ctx.sensitiveFileExposures && ctx.sensitiveFileExposures.length) {\n  for (const f of ctx.sensitiveFileExposures) {\n    findings.push({\n      category: 'Exposed Sensitive File',\n      name: `Sensitive File: ${f.path}`,\n      detail: f.confirmed\n        ? `${f.path} confirmed exposed via ${f.source}, HTTP ${f.status}, ${f.length} bytes. Content excerpt already fetched.`\n        : `${f.path} flagged by ${f.source} but re-fetch returned ${f.status} not 200 - not confirmed exposed this run. URL: ${f.url}`,\n    });\n  }\n}\n\nif (ctx.componentFindings && ctx.componentFindings.length) {\n  for (const c of ctx.componentFindings) {\n    findings.push({\n      category: 'Vulnerable Component',\n      name: `Vulnerable Component: ${c.component} ${c.version}`,\n      detail: `severity ${c.severity}${c.cve && c.cve.length ? ', ' + c.cve.join(', ') : ''}: ${c.summary || 'see info links'}.`,\n    });\n  }\n}\n\nif (ctx.sqlmapScan && !ctx.sqlmapScan.skipped) {\n  if (ctx.sqlmapScan.vulnerable) {\n    const surface = ctx.sqlmapScan.fallbackCrawl ? 'blind homepage crawl' : (ctx.sqlmapScan.targetsUsed || [])[0];\n    findings.push({\n      category: 'SQL Injection (sqlmap)',\n      name: 'SQL Injection confirmed by sqlmap',\n      detail: `Injectable at ${surface}. Findings: ${(ctx.sqlmapScan.findings || []).map(f => `${f.parameter}: ${f.type || 'injectable'}`).join('; ')}.`,\n    });\n  } else {\n    findings.push({\n      category: 'SQL Injection (sqlmap)',\n      name: 'SQL Injection tested - negative',\n      detail: ctx.sqlmapScan.fallbackCrawl\n        ? 'sqlmap fell back to a blind homepage crawl (weak test, JS-rendered app) - no injectable parameter found in what it reached.'\n        : `Tested the real discovered parameterized endpoint ${(ctx.sqlmapScan.targetsUsed || [])[0]} (--level=1 --risk=1) - no injectable parameters found.`,\n    });\n  }\n}\n\nif (ctx.zapScan && !ctx.zapScan.skipped && ctx.zapScan.reachable && ctx.zapScan.alertCount > 0) {\n  const byName = {};\n  for (const a of ctx.zapScan.alerts) {\n    byName[a.name] = byName[a.name] || { risk: a.risk, urls: [] };\n    if (byName[a.name].urls.length < 5) byName[a.name].urls.push(a.url);\n  }\n  const socketIoOnly = (urls) => urls.length > 0 && urls.every(u => /\\/socket\\.io\\//i.test(u));\n  for (const [name, info] of Object.entries(byName)) {\n    let note = '';\n    if (/session/i.test(name) && socketIoOnly(info.urls)) {\n      note = \" LIKELY FALSE POSITIVE: every affected URL is Socket.IO's own transport handshake, not an application session.\";\n    }\n    findings.push({\n      category: 'ZAP Alert',\n      name: `ZAP Alert: ${name} (${info.risk})`,\n      detail: `URLs: ${info.urls.join(', ')}.${note}`,\n    });\n  }\n}\n\nif (ctx.portScan && !ctx.portScan.skipped) {\n  for (const o of ctx.portScan.openPorts) {\n    for (const s of (o.scripts || [])) {\n      if (s.id === 'vulners' && s.cves) {\n        for (const c of s.cves) {\n          findings.push({\n            category: 'Known CVE',\n            name: `CVE: ${c.id} (${o.port}/${o.service})`,\n            detail: `Product ${o.product || 'unknown'} ${o.version || ''}, CVSS ${c.cvss}, Known Exploit?: ${c.isExploit ? 'yes' : 'no'}.`,\n          });\n        }\n      }\n    }\n  }\n}\n\nif (!findings.length) {\n  findings.push({\n    category: 'None',\n    name: 'No confirmed findings',\n    detail: 'No confirmed vulnerabilities were found this run - state this plainly, no exploit line needed.',\n  });\n}\n\nreturn findings.map(f => ({ json: { ...f, target: ctx.target } }));\n"
+    "jsCode": "const ctx = $json;\nconst findings = [];\n\n// Reconciliation helper: a ZAP active-scan alert is a heuristic, not a\n// confirmed exploit - if sqlmap already directly tested the exact same\n// endpoint/parameter and came back negative, that real test outranks ZAP's\n// heuristic and the alert should not be treated as an equally \"confirmed\"\n// finding (this was producing a genuinely contradictory report: the\n// executive summary naming a ZAP SQLi alert as the most serious confirmed\n// finding while the SQL Injection Testing section, a few paragraphs later,\n// said sqlmap tested that exact same endpoint and found nothing).\nconst sameEndpoint = (urlA, urlB) => {\n  try {\n    const a = new URL(urlA), b = new URL(urlB);\n    return a.origin === b.origin && a.pathname === b.pathname;\n  } catch (e) { return false; }\n};\nconst sqlmapTestedNegative = (url) => {\n  if (!ctx.sqlmapScan || ctx.sqlmapScan.skipped || ctx.sqlmapScan.vulnerable) return false;\n  return (ctx.sqlmapScan.targetsUsed || []).some(t => sameEndpoint(t, url));\n};\n\n// Deterministic finding -> tool dispatch. This is the fix for the original\n// Kali-VM finding (curl/nikto overfit onto everything regardless of fit):\n// every finding category gets an explicit, code-decided {tool, command,\n// rationale, verification} here, keyed on the finding's actual structured\n// attributes (confirmed vs unconfirmed, exploit availability from the\n// already-deduped CVE data), not a flat tool list handed to the LLM to pick\n// from. `verification` is also decided per category, not per finding\n// instance - the check for \"did the Metasploit search for CVE-X work\" is\n// structurally identical for every CVE in this category, only the CVE id\n// changes, so there is no per-finding judgment left to make at all (this is\n// also why Section 6 no longer calls an LLM - see Build Deterministic Bullet).\nconst dispatch = (category, opts = {}) => {\n  switch (category) {\n    case 'Missing Security Headers':\n      return { tool: 'None (informational)', command: null, rationale: 'Defense-in-depth gap, not independently exploitable on its own - note for remediation, no active tool applies.', verification: null };\n    case 'Content Discovery':\n      return { tool: 'gobuster/ffuf (deeper enumeration)', command: `gobuster dir -u ${opts.origin} -w /opt/wordlists/common.txt -x php,asp,aspx,jsp,json`, rationale: 'Real directory/API surface already found - the next step is widening enumeration depth against a real target, not guessing at an exploit blind.', verification: 'gobuster reports additional 2xx/3xx paths beyond what the baseline wordlist run already found.' };\n    case 'Exposed Sensitive File - confirmed':\n      return { tool: 'Manual review', command: 'Read the fetched excerpt already captured above', rationale: 'Content is already fetched and confirmed exposed - read it directly for credentials/connection strings, no further tooling needed.', verification: null };\n    case 'Exposed Sensitive File - unconfirmed':\n      return { tool: 'curl (confirmation only)', command: `curl -i '${opts.url}'`, rationale: 'Flagged by discovery but not live-confirmed this run - the only next step is confirming access, not exploitation.', verification: 'HTTP response status is 200 with a non-empty body.' };\n    case 'Vulnerable Component':\n      return { tool: 'searchsploit', command: `searchsploit ${opts.component} ${opts.version}`, rationale: 'Client-side JS library CVE with no exploit-availability signal from this scan - check exploit-db directly rather than assume either way.', verification: 'searchsploit returns at least one matching exploit-db entry for the component/version.' };\n    case 'SQL Injection - confirmed':\n      return { tool: 'sqlmap (escalate)', command: `sqlmap -u '${opts.surface}' --batch --dump`, rationale: 'Injection is already confirmed - escalate straight to data extraction, no further probing needed.', verification: 'sqlmap reports a non-empty --dump result (table/column names extracted).' };\n    case 'SQL Injection - negative':\n      return { tool: 'None', command: null, rationale: 'Already tested negative against a real, observed endpoint - no further action from this signal.', verification: null };\n    case 'ZAP - sqli':\n      return { tool: 'sqlmap', command: `sqlmap -u '${opts.url}' --batch`, rationale: 'ZAP flagged a SQL injection pattern - confirm with sqlmap against the exact flagged URL.', verification: 'sqlmap confirms the injectable parameter (same signal as a direct SQL Injection - confirmed finding).' };\n    case 'ZAP - sqli contradicted by sqlmap':\n      return { tool: 'None (contradicted by direct testing)', command: null, rationale: 'sqlmap already tested this exact endpoint/parameter directly (see the SQL Injection Testing section) and found no injectable parameter - ZAP\\'s active-scan heuristic likely false-positived here, not a confirmed finding.', verification: null };\n    case 'ZAP - xss':\n      return { tool: 'Manual verification (Burp Repeater)', command: `Replay ${opts.url} with a real XSS payload and confirm reflection/execution`, rationale: 'XSS needs a human/Burp to confirm real reflection or execution context - not something to auto-fire a payload at blind.', verification: 'The payload reflects unescaped in the HTTP response body, or executes in a real browser context.' };\n    case 'ZAP - informational':\n      return { tool: 'None (informational)', command: null, rationale: 'Header/config-class alert, not independently exploitable - note for remediation, no active tool applies.', verification: null };\n    case 'ZAP - false positive':\n      return { tool: 'None (false positive)', command: null, rationale: 'Every affected URL is Socket.IO transport handshake traffic, not an application session - do not action.', verification: null };\n    case 'ZAP - unmapped':\n      return { tool: 'Manual triage', command: null, rationale: 'No deterministic rule defined yet for this ZAP alert type - flag for manual review rather than guess a tool.', verification: null };\n    case 'Known CVE - exploitable':\n      return { tool: 'Metasploit', command: `msfconsole -q -x \"search cve:${opts.id}; exit\"`, rationale: `Confirmed CVE (${opts.id}) with a matched public exploit at the same severity - identify and run the applicable Metasploit module directly, not a generic scanner.`, verification: 'msfconsole search output lists at least one matching module for this CVE ID.' };\n    case 'Known CVE - research-only':\n      return { tool: 'None (research only)', command: null, rationale: `Catalogued CVE (${opts.id}) with no known public exploit today - monitor exploit-db/GitHub advisories for a module landing, no active tool recommended yet.`, verification: null };\n    case 'Discovered But Untestable':\n      return {\n        tool: 'sqlmap (manual follow-up - needs real/test credentials)',\n        command: `sqlmap -u '${opts.url}' --data 'email=test&password=test' --batch --level=1 --risk=1`,\n        rationale: 'Automated crawling cannot submit this form - no credentials to try, and for a JS-rendered SPA the form is client-side only, not in server-rendered HTML to fill in even if it did. The endpoint is real and discovered; it is specifically the automated test that is missing.',\n        verification: 'Run manually with real/test credential values substituted for the placeholders above - sqlmap reports either an injection point or a genuine negative once actually tested.',\n      };\n    case 'None':\n      return { tool: null, command: null, rationale: null, verification: null };\n    default:\n      return { tool: 'Manual triage', command: null, rationale: 'No deterministic rule defined yet for this finding type - flag for manual review rather than guess a tool.', verification: null };\n  }\n};\n\nif (ctx.webScan && ctx.webScan.reachable && ctx.webScan.securityHeaders && ctx.webScan.securityHeaders.missing.length) {\n  findings.push({\n    category: 'Missing Security Headers',\n    name: 'Missing Security Headers',\n    detail: `Missing on ${ctx.webScan.origin}: ${ctx.webScan.securityHeaders.missing.join(', ')}.`,\n    ...dispatch('Missing Security Headers'),\n  });\n}\n\nif (ctx.webScan && ctx.webScan.contentDiscovery) {\n  const hits = ctx.webScan.contentDiscovery.filter(h => h.distinctFromBaseline);\n  if (hits.length) {\n    const sample = hits.slice(0, 15).map(h => h.path).join(', ');\n    findings.push({\n      category: 'Content Discovery',\n      name: 'Content Discovery - API/Directory Surface',\n      detail: `${hits.length} genuine paths discovered on ${ctx.webScan.origin} (sample: ${sample}${hits.length > 15 ? ', ...' : ''}).`,\n      ...dispatch('Content Discovery', { origin: ctx.webScan.origin }),\n    });\n  }\n}\n\nif (ctx.sensitiveFileExposures && ctx.sensitiveFileExposures.length) {\n  for (const f of ctx.sensitiveFileExposures) {\n    findings.push({\n      category: 'Exposed Sensitive File',\n      name: `Sensitive File: ${f.path}`,\n      detail: f.confirmed\n        ? `${f.path} confirmed exposed via ${f.source}, HTTP ${f.status}, ${f.length} bytes. Content excerpt already fetched.`\n        : `${f.path} flagged by ${f.source} but re-fetch returned ${f.status} not 200 - not confirmed exposed this run. URL: ${f.url}`,\n      ...dispatch(f.confirmed ? 'Exposed Sensitive File - confirmed' : 'Exposed Sensitive File - unconfirmed', { url: f.url }),\n    });\n  }\n}\n\nif (ctx.componentFindings && ctx.componentFindings.length) {\n  for (const c of ctx.componentFindings) {\n    findings.push({\n      category: 'Vulnerable Component',\n      name: `Vulnerable Component: ${c.component} ${c.version}`,\n      detail: `severity ${c.severity}${c.cve && c.cve.length ? ', ' + c.cve.join(', ') : ''}: ${c.summary || 'see info links'}.`,\n      ...dispatch('Vulnerable Component', { component: c.component, version: c.version }),\n    });\n  }\n}\n\nif (ctx.sqlmapScan && !ctx.sqlmapScan.skipped) {\n  const results = ctx.sqlmapScan.results || [];\n  const vulnResults = results.filter(r => r.vulnerable);\n  const negResults = results.filter(r => !r.vulnerable);\n  for (const r of vulnResults) {\n    findings.push({\n      category: 'SQL Injection (sqlmap)',\n      name: `SQL Injection confirmed by sqlmap: ${r.url}`,\n      detail: `Injectable at ${r.url}. Findings: ${(r.findings || []).map(f => `${f.parameter}: ${f.type || 'injectable'}`).join('; ')}.`,\n      ...dispatch('SQL Injection - confirmed', { surface: r.url }),\n    });\n  }\n  if (negResults.length) {\n    findings.push({\n      category: 'SQL Injection (sqlmap)',\n      name: 'SQL Injection tested - negative',\n      detail: ctx.sqlmapScan.fallbackCrawl\n        ? 'sqlmap fell back to a blind homepage crawl (weak test, JS-rendered app) - no injectable parameter found in what it reached.'\n        : `Tested ${negResults.length} of ${ctx.sqlmapScan.candidateCount} discovered candidate endpoint(s) (top ${ctx.sqlmapScan.testedCount}, --level=1 --risk=1 each) - no injectable parameters found in any of them.`,\n      ...dispatch('SQL Injection - negative'),\n    });\n  }\n}\n\nif (ctx.zapScan && !ctx.zapScan.skipped && ctx.zapScan.reachable && ctx.zapScan.alertCount > 0) {\n  const byName = {};\n  for (const a of ctx.zapScan.alerts) {\n    byName[a.name] = byName[a.name] || { risk: a.risk, urls: [] };\n    if (byName[a.name].urls.length < 5) byName[a.name].urls.push(a.url);\n  }\n  const socketIoOnly = (urls) => urls.length > 0 && urls.every(u => /\\/socket\\.io\\//i.test(u));\n  for (const [name, info] of Object.entries(byName)) {\n    let zapCategory = 'ZAP - unmapped';\n    const contradictedBySqlmap = /sql injection/i.test(name) && info.urls.some(u => sqlmapTestedNegative(u));\n    if (/session/i.test(name) && socketIoOnly(info.urls)) zapCategory = 'ZAP - false positive';\n    else if (contradictedBySqlmap) zapCategory = 'ZAP - sqli contradicted by sqlmap';\n    else if (/sql injection/i.test(name)) zapCategory = 'ZAP - sqli';\n    else if (/cross site scripting|xss/i.test(name)) zapCategory = 'ZAP - xss';\n    else if (/content security|anti-clickjacking|x-content-type|cookie|header|cross-domain/i.test(name)) zapCategory = 'ZAP - informational';\n    findings.push({\n      category: 'ZAP Alert',\n      name: `ZAP Alert: ${name} (${info.risk})`,\n      detail: `URLs: ${info.urls.join(', ')}.${contradictedBySqlmap ? ' sqlmap directly tested this same endpoint/parameter and found no injectable parameter - contradicts this alert.' : ''}`,\n      ...dispatch(zapCategory, { url: info.urls[0] }),\n    });\n  }\n}\n\n// Real CVE matches, deduped and exploit-flagged by Build Deterministic\n// Report Sections already - consuming that instead of the raw vulners\n// citation list avoids re-introducing the duplicate-citation noise problem\n// the Section 5 CVE table was fixed for. Research-only (no known exploit)\n// CVEs are deliberately skipped here - they're already listed in the\n// Section 5 CVE table, and an \"attack planning\" bullet whose only content\n// is \"monitor for an exploit landing\" adds nothing Section 5 didn't already\n// say, for every one of what can be dozens of catalogued-but-unexploited\n// CVEs on an old target. They still count toward the executive summary\n// (computed independently in Build Deterministic Report Sections from the\n// same dedupedCves), just not toward Section 6's per-finding bullets.\nfor (const c of (ctx.dedupedCves || [])) {\n  if (!c.exploitable) continue;\n  findings.push({\n    category: 'Known CVE',\n    name: `CVE: ${c.id} (${c.port}/${c.service})`,\n    detail: `Product ${c.product || 'unknown'} ${c.version || ''}, CVSS ${c.cvss}, Known Exploit?: yes.`,\n    ...dispatch('Known CVE - exploitable', { id: c.id }),\n  });\n}\n\n// Discovered but untestable: known auth/login-shaped endpoints found\n// during crawling/content-discovery that this platform can't functionally\n// test - no credentials to submit, and for JS SPAs the form itself isn't\n// server-rendered HTML to fill in even if it did. Flagged explicitly for a\n// human to follow up on, every time one is discovered, rather than\n// silently dropped or folded into a generic \"not run\" line - the endpoint\n// IS real and found, it's specifically the automated test that's missing.\nif (ctx.webScan && ctx.webScan.reachable) {\n  const sensitivePathRe = /login|signin|sign-in|auth|register|password|reset|admin/i;\n  const testedUrls = new Set(((ctx.sqlmapScan && ctx.sqlmapScan.results) || []).map(r => r.url));\n  const candidatePaths = [...new Set(\n    (ctx.webScan.contentDiscovery || [])\n      .filter(c => c.distinctFromBaseline && sensitivePathRe.test(c.path))\n      .map(c => c.path)\n  )];\n  for (const path of candidatePaths) {\n    const url = ctx.webScan.origin + path;\n    if (testedUrls.has(url)) continue;\n    findings.push({\n      category: 'Discovered But Untestable',\n      name: `Login/Auth-Shaped Endpoint: ${path}`,\n      detail: `Discovered during content discovery/crawling but never functionally tested against real input.`,\n      ...dispatch('Discovered But Untestable', { url }),\n    });\n  }\n}\n\nif (!findings.length) {\n  findings.push({\n    category: 'None',\n    name: 'No confirmed findings',\n    detail: 'No confirmed vulnerabilities were found this run - state this plainly, no exploit line needed.',\n    ...dispatch('None'),\n  });\n}\n\nreturn findings.map(f => ({ json: { ...f, target: ctx.target } }));\n"
    },
    "id": "b1000000-0000-4000-8000-100000000001",
    "name": "Extract Findings List",
@@ -685,7 +635,7 @@
     5280,
     700
    ],
-   "disabled": true
+   "disabled": false
   },
   {
    "parameters": {
@@ -700,65 +650,11 @@
     5504,
     700
    ],
-   "disabled": true
+   "disabled": false
   },
   {
    "parameters": {
-    "promptType": "define",
-    "text": "=Write ONE attack-planning bullet for a single finding in an authorized recon report on {{$json.target}}. No phishing/social engineering (T1566, T1598, T1589, T1591) - infrastructure/technical only. This report has two readers: a blue team deciding what to fix, and a separate automated exploitation-verification tool that will later take this bullet and actually attempt it - so be concrete, never vague (\"would allow\", \"could expose\").\n\nCategory: {{$json.category}}\nFinding: {{$json.name}}\nDetail: {{$json.detail}}\n\nThink it through first if you need to, but then write your FINAL answer wrapped between the literal markers <ANSWER> and </ANSWER>, with nothing else inside those markers - no heading, no restating the finding, no preamble, no reasoning. Everything outside the markers is discarded, so put only the finished bullet inside them. Inside <ANSWER>...</ANSWER>, write ONLY the 4 lines below for this ONE finding:\n1. **Tool/command**: exact tool/command against THIS finding, real syntax, real target values from the detail above, not a placeholder. curl is a confirmation step only, never the whole plan, except when the finding IS a specific backup/config/source file - there, fetching it with curl and grepping for credentials/connection strings is the whole plan. Otherwise pick the real offensive tool by category:\n   - missing security header / TLS / a ZAP alert describing the same class of issue (Content Security Policy, Cross-Domain Misconfiguration, Missing Anti-clickjacking Header, X-Content-Type-Options, cookie flags) -> `nikto -h <target> -Tuning x`, or `testssl.sh <target>` if TLS is in play.\n   - content-discovery directory/API surface (not a single file) -> `ffuf -u http://<target>/FUZZ -w <wordlist>` or Burp Suite Intruder to fuzz parameters/IDs.\n   - a form or discovered parameterized endpoint -> Burp Suite Repeater, or `sqlmap -u '<url>' --forms --batch` if untested.\n   - open port/service with no CVE match -> `nmap --script vuln -p <port> <target>`, or `hydra`/`medusa` if it takes credentials.\n   - vulnerable component with no direct CVE -> `searchsploit <component> <version>`.\n   - ZAP injection/XSS-class alert (SQL Injection, Cross Site Scripting, Command Injection) -> reproduce the exact payload from the finding in Burp Suite Repeater or a browser dev console.\n   - a CVE with Known Exploit: yes -> `msfconsole -q -x \"search cve:CVE-XXXX-YYYYY\"`, name the likely module/payload too.\n2. **Goal**: what this is trying to achieve (credential theft, RCE, exfiltration, pivoting) in one clause.\n3. **Chain**: what success looks like and the next step after that.\n4. **Verification signal**: the literal, checkable thing that proves it worked or failed - an exact status code, header value, response string, or tool exit condition. This is what the future automation greps for - no human judgment call.\nIf the detail above is annotated \"LIKELY FALSE POSITIVE\", instead put exactly one line inside the markers: \"Scanner false positive: <reason from the detail>.\" and nothing else.\nIf the detail above states a negative/clean test result (no vulnerability found), instead put exactly one line inside the markers stating the negative result plainly and what it means defensively - never call it \"nothing to attack here yet\".",
-    "batching": {}
-   },
-   "id": "b1000000-0000-4000-8000-100000000003",
-   "name": "Per-Finding Attack Bullet",
-   "type": "@n8n/n8n-nodes-langchain.chainLlm",
-   "typeVersion": 1.7,
-   "position": [
-    5760,
-    620
-   ],
-   "retryOnFail": true,
-   "maxTries": 3,
-   "waitBetweenTries": 5000,
-   "disabled": true
-  },
-  {
-   "parameters": {
-    "model": "qwen3:8b",
-    "options": {}
-   },
-   "id": "b1000000-0000-4000-8000-100000000004",
-   "name": "Ollama Chat Model (Per-Finding)",
-   "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-   "typeVersion": 1,
-   "position": [
-    5760,
-    840
-   ],
-   "credentials": {
-    "ollamaApi": {
-     "id": "DEj011iqClsQL6Jm",
-     "name": "Recon Platform Ollama"
-    }
-   },
-   "disabled": true
-  },
-  {
-   "parameters": {
-    "jsCode": "const item = $('Split Findings').item.json;\nlet raw = $json.text || $json.output || '';\nraw = raw.replace(/^[\\s\\S]*?<\\/think>\\s*/i, '');\n\nlet body;\nconst fullMatch = raw.match(/<ANSWER>([\\s\\S]*?)<\\/ANSWER>/i);\nif (fullMatch) {\n  body = fullMatch[1];\n} else {\n  const openOnlyMatch = raw.match(/<ANSWER>([\\s\\S]*)$/i);\n  body = openOnlyMatch ? openOnlyMatch[1] : raw;\n}\nbody = body.replace(/<\\/?ANSWER>/gi, '').trim();\n\nif (!body || body.length < 10) {\n  body = '(Ollama did not return usable output for this finding - manual review needed.)';\n}\nconst bulletText = `### ${item.name}\\n${body}`;\nreturn [{ json: { ...item, bulletText } }];\n"
-   },
-   "id": "b1000000-0000-4000-8000-100000000005",
-   "name": "Capture Finding Bullet",
-   "type": "n8n-nodes-base.code",
-   "typeVersion": 2,
-   "position": [
-    6000,
-    620
-   ],
-   "disabled": true
-  },
-  {
-   "parameters": {
-    "jsCode": "const items = $input.all();\nconst bullets = items.map(i => i.json.bulletText).join('\\n\\n');\nconst ctx = $('Build Deterministic Report Sections').item.json;\nconst section6Text = '## 6. If I Were Attacking This\\n\\n' + (bullets || '(No findings to report.)');\nreturn [{ json: { ...ctx, section6Text } }];\n"
+    "jsCode": "const items = $input.all();\nconst bullets = items.map(i => i.json.bulletText).join('\\n\\n');\nconst ctx = $('Build Deterministic Report Sections').item.json;\nconst section6Text = '## 6. If I Were Attacking This\\n\\n' + (bullets || '(No findings to report.)');\n\n// Condensed, grouped-by-tool summary for Section 7's prompt input - the\n// full section6Text repeats a near-identical templated bullet once per CVE\n// on a CVE-heavy target (dozens of near-duplicate \"use Metasploit for\n// CVE-X\" lines), which overloaded the model's context window and made\n// Section 7 fail to converge to a well-formed answer at all. Section 7\n// needs to know what tools/categories are in play to chain into an ATT&CK\n// narrative, not read every individual repetition.\nconst byTool = new Map();\nlet informationalCount = 0;\nfor (const it of items) {\n  const f = it.json;\n  if (!f.tool || /^(None|Manual)/.test(f.tool)) { informationalCount++; continue; }\n  if (!byTool.has(f.tool)) byTool.set(f.tool, { tool: f.tool, count: 0, examples: [] });\n  const g = byTool.get(f.tool);\n  g.count++;\n  if (g.examples.length < 3) g.examples.push(f.name);\n}\nconst toolGroups = [...byTool.values()];\nconst section6Summary = toolGroups.length\n  ? toolGroups.map(g => `- ${g.tool}: ${g.count} finding(s), e.g. ${g.examples.join('; ')}`).join('\\n') + (informationalCount ? `\\n- ${informationalCount} additional informational/no-action finding(s) not independently actionable.` : '')\n  : 'No actionable findings this run.';\n\n// Deterministic layer triggers for Section 7 - additive per-host layers\n// (network/OS always runs; middleware/technology only if a product was\n// actually identified; webapp/API only if there was real content), not an\n// LLM guess at which stages are relevant. Section 7 is only allowed to\n// narrate the layers this flags as triggered, never invent additional ones.\nconst networkLayerTriggered = !!(ctx.portScan && !ctx.portScan.skipped && ctx.portScan.openPorts.length);\nconst identifiedProducts = networkLayerTriggered\n  ? [...new Set(ctx.portScan.openPorts.filter(o => o.product).map(o => `${o.product}${o.version ? ' ' + o.version : ''} (port ${o.port})`))]\n  : [];\nconst middlewareLayerTriggered = identifiedProducts.length > 0;\nconst webappLayerTriggered = !!(ctx.webScan && ctx.webScan.reachable && ((ctx.webScan.contentDiscovery || []).some(h => h.distinctFromBaseline) || (ctx.webScan.forms || []).length));\nconst layerTriggers = { networkLayerTriggered, middlewareLayerTriggered, identifiedProducts, webappLayerTriggered };\n\nreturn [{ json: { ...ctx, section6Text, section6Summary, layerTriggers } }];"
    },
    "id": "b1000000-0000-4000-8000-100000000006",
    "name": "Aggregate Section 6",
@@ -768,7 +664,7 @@
     5504,
     950
    ],
-   "disabled": true
+   "disabled": false
   },
   {
    "id": "35ed9c75-0d2d-4eb2-9fdf-0622ab0a11f3",
@@ -781,19 +677,6 @@
    ],
    "parameters": {
     "jsCode": "const ctx = $json;\nconst findings = ctx.componentFindings || [];\nconst results = [];\nconst MAX = 15;\nlet checked = 0;\nfor (const c of findings) {\n  if (checked >= MAX) break;\n  if (!c.component || !c.version) continue;\n  checked++;\n  try {\n    const res = await this.helpers.httpRequest({\n      method: 'POST',\n      url: 'https://api.osv.dev/v1/query',\n      body: { version: c.version, package: { name: c.component, ecosystem: 'npm' } },\n      json: true,\n      timeout: 8000,\n    });\n    const vulns = (res && res.vulns) || [];\n    results.push({\n      component: c.component,\n      version: c.version,\n      retireCve: c.cve || [],\n      osvMatchCount: vulns.length,\n      osvVulns: vulns.slice(0, 5).map(v => ({\n        id: v.id,\n        aliases: v.aliases || [],\n        summary: v.summary || (v.details ? v.details.slice(0, 200) : null),\n        severity: (v.severity && v.severity[0] && v.severity[0].score) || null,\n      })),\n      newFindingsBeyondRetire: vulns.some(v => {\n        const ids = [v.id, ...(v.aliases || [])];\n        return !ids.some(id => (c.cve || []).includes(id));\n      }),\n      lookupStatus: 'ok',\n    });\n  } catch (e) {\n    results.push({ component: c.component, version: c.version, retireCve: c.cve || [], lookupStatus: 'failed', error: String(e.message || e).slice(0, 200) });\n  }\n}\nreturn [{ json: { ...ctx, osvEnrichment: results } }];\n"
-   }
-  },
-  {
-   "id": "59a6ab13-3011-4ff2-82da-07c1c725b972",
-   "name": "Summarize CVE Findings",
-   "type": "n8n-nodes-base.code",
-   "typeVersion": 2,
-   "position": [
-    3360,
-    240
-   ],
-   "parameters": {
-    "jsCode": "const ctx = $json;\n// Deterministic pre-summarization of vulners CVE hits before they reach the\n// Escalation Reasoning prompt - dumping the raw (often hundreds-of-entries,\n// heavily duplicated across exploit sources) array directly into the prompt\n// overwhelms the local model and lets it latch onto an arbitrary low-severity\n// entry instead of the real highest-CVSS finding. Group by port+product,\n// take the max CVSS per group, sort descending, cap to a handful.\nconst groups = new Map();\nfor (const o of ((ctx.portScan && ctx.portScan.openPorts) || [])) {\n  for (const s of (o.scripts || [])) {\n    if (s.id !== 'vulners') continue;\n    for (const c of (s.cves || [])) {\n      const key = `${o.port}|${o.product || o.service}|${o.version || ''}`;\n      const g = groups.get(key) || {\n        port: o.port, service: o.service, product: o.product, version: o.version,\n        maxCvss: 0, count: 0, hasExploit: false, topId: null,\n      };\n      g.count++;\n      if (c.isExploit) g.hasExploit = true;\n      if (c.cvss > g.maxCvss) { g.maxCvss = c.cvss; g.topId = c.id; }\n      groups.set(key, g);\n    }\n  }\n}\nconst cveSummary = [...groups.values()].sort((a, b) => b.maxCvss - a.maxCvss).slice(0, 8);\nreturn [{ json: { ...ctx, cveSummary } }];\n"
    }
   },
   {
@@ -873,6 +756,125 @@
    "parameters": {
     "jsCode": "const ctx = $('Build TLS Scan Command').item.json;\nif (!ctx.tlsAttempted) {\n  return [{ json: { ...ctx, tlsScan: { skipped: true, reason: 'port 443 not open' } } }];\n}\n// testssl.sh's --jsonfile-pretty output is a nested object, not a flat array:\n// { ..., scanResult: [ { targetHost, ip, port, pretest: [...], protocols: [...],\n// ciphers: [...], serverDefaults: [...], vulnerabilities: [...], ... } ] } -\n// each named key under scanResult[0] is a section holding an array of finding\n// objects. Flatten every section's array together rather than assuming a\n// single top-level array (confirmed live against a real target - the naive\n// flat-array assumption silently produced zero findings).\nlet allEntries = [];\ntry {\n  const parsed = JSON.parse($json.stdout || '{}');\n  const scanResult = (parsed.scanResult && parsed.scanResult[0]) || {};\n  for (const section of Object.values(scanResult)) {\n    if (Array.isArray(section)) allEntries.push(...section);\n  }\n} catch (e) { allEntries = []; }\n\nconst notableSeverities = new Set(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);\n// cert_subjectAltName's real id carries a per-certificate suffix (e.g.\n// \"cert_subjectAltName <hostCert#1>\" - a target can present multiple certs,\n// RSA + EC dual-cert setups are common) - match by prefix, not exact equality.\nconst findings = allEntries\n  .filter(e => e.severity && notableSeverities.has(e.severity) && !String(e.id || '').startsWith('cert_subjectAltName'))\n  .map(e => ({ id: e.id, severity: e.severity, finding: e.finding, cve: e.cve || null }));\n\nconst sanEntry = allEntries.find(e => String(e.id || '').startsWith('cert_subjectAltName'));\nconst certSans = sanEntry\n  ? sanEntry.finding.split(/[\\s,]+/).map(s => s.trim()).filter(Boolean)\n  : [];\n\nconst tlsScan = { skipped: false, ranButNoOutput: allEntries.length === 0, findingCount: findings.length, findings, certSans };\nreturn [{ json: { ...ctx, tlsScan } }];\n"
    }
+  },
+  {
+   "parameters": {
+    "jsCode": "const item = $('Split Findings').item.json;\nlet body;\nif (item.tool && !/^(None|Manual)/.test(item.tool)) {\n  body = `1. **Tool/command**: \\`${item.command}\\`\\n2. **Goal**: ${item.rationale}\\n3. **Verification signal**: ${item.verification || 'No deterministic verification signal defined yet for this category.'}`;\n} else {\n  body = item.rationale || 'No action - see detail above.';\n}\nconst bulletText = `### ${item.name}\\n${body}`;\nreturn [{ json: { ...item, bulletText } }];\n"
+   },
+   "id": "b72498d6-a71e-4470-8653-371da194b5c5",
+   "name": "Build Finding Bullet",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5900,
+    820
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst ctx = $json;\nconst ws = ctx.webScan;\nif (!ws || !ws.reachable) {\n  return [{ json: { ...ctx, webScan: { ...(ws || {}), wordpress: { detected: false, reason: 'web target not reachable' } } } }];\n}\nconst origin = ws.origin;\nconst httpGet = async (path) => {\n  try {\n    return await this.helpers.httpRequest({ method: 'GET', url: origin + path, timeout: 10000, returnFullResponse: true, ignoreHttpStatusErrors: true });\n  } catch (e) { return null; }\n};\n\nconst evidence = [];\nlet version = null;\nconst fpStrings = (ws.fingerprint && ws.fingerprint.evidenceStrings) || [];\nfor (const s of fpStrings) {\n  if (/wp-content|wp-includes/i.test(s)) evidence.push('crawl evidence: ' + s.slice(0, 120));\n  const gen = s.match(/generator[^\"']*WordPress\\s*([0-9.]+)?/i);\n  if (gen) { evidence.push('generator string: ' + s.slice(0, 120)); if (gen[1]) version = version || gen[1]; }\n}\nconst headers = ws.headers || {};\nconst linkHdr = String(headers['link'] || headers['Link'] || '');\nif (/api\\.w\\.org/i.test(linkHdr)) evidence.push('Link header advertises WP REST API (api.w.org)');\nif (headers['x-pingback'] || headers['X-Pingback']) evidence.push('X-Pingback header present');\nfor (const c of (ws.contentDiscovery || [])) {\n  if (/^\\/(wp-login\\.php|wp-admin|xmlrpc\\.php|wp-json)/i.test(c.path) && c.distinctFromBaseline) evidence.push('content-discovery hit: ' + c.path);\n}\n\nconst restRoot = await httpGet('/wp-json/');\nif (restRoot && restRoot.statusCode === 200) {\n  const body = typeof restRoot.body === 'string' ? restRoot.body : JSON.stringify(restRoot.body || {});\n  if (/\"namespaces\"|\"routes\"|\"name\":/.test(body)) evidence.push('/wp-json/ returns a WP REST API index (HTTP 200)');\n}\nconst login = await httpGet('/wp-login.php');\nif (login && /user_login|loginform|wp-submit/.test(typeof login.body === 'string' ? login.body : '')) {\n  evidence.push('/wp-login.php serves the standard WordPress login form');\n}\n\nif (!version) {\n  const readme = await httpGet('/readme.html');\n  if (readme && typeof readme.body === 'string') {\n    const m = readme.body.match(/Version\\s+([0-9]+\\.[0-9]+(?:\\.[0-9]+)?)/i);\n    if (m) { version = m[1]; evidence.push('/readme.html discloses version ' + m[1]); }\n  }\n}\nif (!version) {\n  for (const s of fpStrings) {\n    const m = s.match(/wp-(?:includes|admin)\\/[^\"'\\s]*\\?ver=([0-9]+\\.[0-9]+(?:\\.[0-9]+)?)/i);\n    if (m) { version = m[1]; break; }\n  }\n}\n\nconst detected = evidence.length >= 2 || fpStrings.some(s => /wp-content|wp-includes/i.test(s));\nreturn [{ json: { ...ctx, webScan: { ...ws, wordpress: { detected, version: version || null, evidence: evidence.slice(0, 12) } } } }];\n"
+   },
+   "id": "b1a00000-0000-4000-8000-000000000101",
+   "name": "Detect WordPress",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2464,
+    620
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "wp-c1",
+       "leftValue": "={{ $('Validate & Normalize').item.json.wordpressScan }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      },
+      {
+       "id": "wp-c2",
+       "leftValue": "={{ $json.webScan && $json.webScan.wordpress && $json.webScan.wordpress.detected }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ]
+    },
+    "options": {}
+   },
+   "id": "b1a00000-0000-4000-8000-000000000102",
+   "name": "WordPress Scan?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    5056,
+    240
+   ]
+  },
+  {
+   "parameters": {
+    "workflowId": {
+     "__rl": true,
+     "value": "v0I742FVkJROVPWI",
+     "mode": "id"
+    },
+    "workflowInputs": {
+     "value": {
+      "target": "={{ $json.target }}",
+      "origin": "={{ $json.webScan.origin }}"
+     }
+    },
+    "options": {}
+   },
+   "id": "b1a00000-0000-4000-8000-000000000103",
+   "name": "Dispatch WordPress Scan",
+   "type": "n8n-nodes-base.executeWorkflow",
+   "typeVersion": 1.2,
+   "position": [
+    5280,
+    144
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst ctx = $('WordPress Scan?').item.json;\nreturn [{ json: { ...ctx, wpscanScan: $json } }];\n"
+   },
+   "id": "b1a00000-0000-4000-8000-000000000104",
+   "name": "Merge WP Result",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5504,
+    144
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "\nreturn [{ json: { ...$json, wpscanScan: { skipped: true, reason: $('Validate & Normalize').item.json.wordpressScan ? 'not identified as WordPress' : 'toggle off' } } }];\n"
+   },
+   "id": "b1a00000-0000-4000-8000-000000000105",
+   "name": "Skip WP Scan",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5280,
+    336
+   ]
   }
  ],
  "connections": {
@@ -1047,7 +1049,8 @@
       "index": 0
      }
     ]
-   ]
+   ],
+   "main": []
   },
   "Build Report File": {
    "main": [
@@ -1177,7 +1180,7 @@
    "main": [
     [
      {
-      "node": "Fetch Sensitive File Excerpts",
+      "node": "WordPress Scan?",
       "type": "main",
       "index": 0
      }
@@ -1188,7 +1191,7 @@
    "main": [
     [
      {
-      "node": "Build Report File",
+      "node": "Extract Findings List",
       "type": "main",
       "index": 0
      }
@@ -1232,40 +1235,7 @@
    "main": [
     [
      {
-      "node": "Fetch Sensitive File Excerpts",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Ollama Chat Model (Reasoning)": {
-   "ai_languageModel": [
-    [
-     {
-      "node": "Escalation Reasoning",
-      "type": "ai_languageModel",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Escalation Reasoning": {
-   "main": [
-    [
-     {
-      "node": "Capture Escalation Reasoning",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Capture Escalation Reasoning": {
-   "main": [
-    [
-     {
-      "node": "Build Report Data",
+      "node": "WordPress Scan?",
       "type": "main",
       "index": 0
      }
@@ -1276,7 +1246,7 @@
    "main": [
     [
      {
-      "node": "Build Component Scan Command",
+      "node": "Detect WordPress",
       "type": "main",
       "index": 0
      }
@@ -1287,7 +1257,7 @@
    "main": [
     [
      {
-      "node": "Summarize CVE Findings",
+      "node": "Build Report Data",
       "type": "main",
       "index": 0
      }
@@ -1316,40 +1286,7 @@
     ],
     [
      {
-      "node": "Per-Finding Attack Bullet",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Per-Finding Attack Bullet": {
-   "main": [
-    [
-     {
-      "node": "Capture Finding Bullet",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Ollama Chat Model (Per-Finding)": {
-   "ai_languageModel": [
-    [
-     {
-      "node": "Per-Finding Attack Bullet",
-      "type": "ai_languageModel",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Capture Finding Bullet": {
-   "main": [
-    [
-     {
-      "node": "Split Findings",
+      "node": "Build Finding Bullet",
       "type": "main",
       "index": 0
      }
@@ -1372,17 +1309,6 @@
     [
      {
       "node": "SQL Injection Test?",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Summarize CVE Findings": {
-   "main": [
-    [
-     {
-      "node": "Escalation Reasoning",
       "type": "main",
       "index": 0
      }
@@ -1454,16 +1380,85 @@
      }
     ]
    ]
+  },
+  "Build Finding Bullet": {
+   "main": [
+    [
+     {
+      "node": "Split Findings",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Detect WordPress": {
+   "main": [
+    [
+     {
+      "node": "Build Component Scan Command",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "WordPress Scan?": {
+   "main": [
+    [
+     {
+      "node": "Dispatch WordPress Scan",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Skip WP Scan",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dispatch WordPress Scan": {
+   "main": [
+    [
+     {
+      "node": "Merge WP Result",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Merge WP Result": {
+   "main": [
+    [
+     {
+      "node": "Fetch Sensitive File Excerpts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Skip WP Scan": {
+   "main": [
+    [
+     {
+      "node": "Fetch Sensitive File Excerpts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
   }
  },
+ "id": "kib34AggAcopWJZ9",
  "settings": {
   "executionOrder": "v1",
   "callerPolicy": "workflowsFromSameOwner",
   "availableInMCP": false
- },
- "staticData": null,
- "meta": null,
- "pinData": {},
- "triggerCount": 0,
- "tags": []
+ }
 }

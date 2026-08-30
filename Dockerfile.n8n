@@ -33,5 +33,23 @@ RUN apk add --no-cache bind-tools nmap nmap-scripts whois python3 py3-pip git ti
     git clone --depth 1 --branch ${TESTSSL_VERSION} https://github.com/drwetter/testssl.sh.git /opt/testssl.sh && \
     ln -s /opt/testssl.sh/testssl.sh /usr/local/bin/testssl.sh && \
     npm install -g n8n retire
+# WPScan (Ruby gem) - drives the WordPress branch: core/plugin/theme version
+# + vuln enumeration, user enumeration, XML-RPC/REST exposure. Same "grab it
+# from its real distribution channel" pattern as sqlmap (pip) / gobuster
+# (binary). Separate RUN layer so a wpscan rebuild doesn't re-run the slow
+# recon-ng/testssl clone above. No WPScan API token configured -> enumeration
+# works, vuln-database CVE correlation is skipped (documented limitation).
+# ponytail: build-base/ruby-dev left in the image (~200MB) rather than apk-del
+# after - prune on the on-prem server build if image size ever matters.
+RUN apk add --no-cache ruby ruby-dev build-base libffi-dev && \
+    gem install --no-document wpscan
 USER node
+# Bake the WPScan vulnerability database into the image (free, no API token
+# needed for the DB itself). wpscan 4.x refuses to run at all without it, even
+# for enumeration-only. Scans then run with --no-update so they don't each
+# call out to wpscan.com. ponytail: DB goes stale between image rebuilds -
+# fine for a PoC; the on-prem build can cron `wpscan --update` if freshness
+# matters. `|| true` so a transient fetch failure at build time doesn't fail
+# the whole image (runtime falls back to needing an update then).
+RUN wpscan --update --no-banner || true
 ENTRYPOINT ["tini", "--", "n8n"]

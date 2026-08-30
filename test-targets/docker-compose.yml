@@ -8,6 +8,26 @@
 # Usage:
 #   podman compose -f test-targets/docker-compose.yml up -d juice-shop
 #   podman compose -f test-targets/docker-compose.yml down
+#
+# ---------------------------------------------------------------------------
+# Host port publishing (for an external tester, e.g. a Kali VM in VirtualBox)
+# ---------------------------------------------------------------------------
+# Ports are published on 192.168.56.1 - the Mac's VirtualBox *host-only*
+# adapter (vboxnet) - NOT 0.0.0.0, so the deliberately-vulnerable services
+# are reachable from the testing VM only, never the wider LAN.
+#
+# Rootless podman on macOS cannot bind host ports < 1024 (gvproxy runs
+# unprivileged). metasploitable2's privileged ports are therefore published
+# with a +10000 offset: host 10021 -> ftp/21, 10022 -> ssh/22, 10080 -> 80,
+# etc. Ports >= 1024 keep their number. Point the tester's RPORT/-p at the
+# host port; the service inside is still on the real one.
+#
+# NOTE: on the future on-prem Linux server this offset goes away - native
+# Linux + rootful podman can bind 21/22/80 directly. Revisit these mappings
+# there rather than carrying the offset over.
+#
+# juice-shop currently runs from a manual `podman run -p 3000:3000` (0.0.0.0)
+# and is left as-is; the mapping below is what it *should* be for consistency.
 
 networks:
   demo:
@@ -21,20 +41,83 @@ services:
     container_name: juice-shop
     networks: ['demo']
     ports:
-      - 3000:3000
+      - "192.168.56.1:3000:3000"
+
+  sqli-labs:
+    image: docker.io/acgpiano/sqli-labs
+    hostname: sqli-labs
+    container_name: sqli-labs
+    networks: ['demo']
+    ports:
+      - "192.168.56.1:8081:80"
+      - "192.168.56.1:33061:3306"
+
+  # WordPress target for the wpscan branch. WP hard-redirects to its stored
+  # site URL, which breaks scanning by container hostname; WORDPRESS_CONFIG_EXTRA
+  # derives siteurl/home from the request Host header so it answers correctly
+  # both as http://wordpress (from n8n) and http://192.168.56.1:8083 (from Kali).
+  # After first `up`, complete the install once:
+  #   curl -d 'weblog_title=ReconLab&user_name=admin&admin_password=Adm1n-Recon-Lab-2026&admin_password2=Adm1n-Recon-Lab-2026&pw_weak=1&admin_email=admin@recon.lab&blog_public=1&Submit=Install+WordPress' \
+  #     'http://192.168.56.1:8083/wp-admin/install.php?step=2'
+  wp-mariadb:
+    image: docker.io/library/mariadb:10.6
+    hostname: wp-mariadb
+    container_name: wp-mariadb
+    networks: ['demo']
+    environment:
+      MARIADB_ROOT_PASSWORD: wproot
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wp
+      MARIADB_PASSWORD: wppass
+
+  wordpress:
+    image: docker.io/library/wordpress:5.7-apache
+    hostname: wordpress
+    container_name: wordpress
+    networks: ['demo']
+    depends_on: ['wp-mariadb']
+    environment:
+      WORDPRESS_DB_HOST: wp-mariadb
+      WORDPRESS_DB_USER: wp
+      WORDPRESS_DB_PASSWORD: wppass
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_CONFIG_EXTRA: |
+        if (isset($$_SERVER['HTTP_HOST'])) {
+          define('WP_SITEURL', 'http://' . $$_SERVER['HTTP_HOST']);
+          define('WP_HOME', 'http://' . $$_SERVER['HTTP_HOST']);
+        }
+    ports:
+      - "192.168.56.1:8083:80"
 
   metasploitable2:
     image: docker.io/tleemcjr/metasploitable2
     hostname: metasploitable2
     container_name: metasploitable2
     networks: ['demo']
-    # Deliberately no host port mapping - this image runs real vulnerable
-    # services (vsftpd 2.3.4 backdoor, telnet, unpatched Samba, the
-    # ingreslock/1524 root shell) that must stay reachable only from inside
-    # the isolated compose network, never exposed to the host/LAN.
-    #
     # The image's default entrypoint runs services.sh then drops to an
     # interactive `bash` - fine for `docker run -it` but exits immediately
     # with no attached tty, killing the container. Override to keep it
     # foregrounded after services start.
     command: sh -c "/bin/services.sh && tail -f /dev/null"
+    ports:
+      # privileged ports, +10000 offset (see header note)
+      - "192.168.56.1:10021:21"    # ftp (vsftpd 2.3.4 backdoor)
+      - "192.168.56.1:10022:22"    # ssh
+      - "192.168.56.1:10023:23"    # telnet
+      - "192.168.56.1:10025:25"    # smtp
+      - "192.168.56.1:10080:80"    # http
+      - "192.168.56.1:10111:111"   # rpcbind
+      - "192.168.56.1:10139:139"   # netbios-ssn (Samba)
+      - "192.168.56.1:10445:445"   # microsoft-ds (Samba)
+      - "192.168.56.1:10512:512"   # exec
+      - "192.168.56.1:10513:513"   # login
+      - "192.168.56.1:10514:514"   # shell
+      # unprivileged ports, published as-is
+      - "192.168.56.1:1524:1524"   # ingreslock root shell
+      - "192.168.56.1:2121:2121"   # ProFTPD
+      - "192.168.56.1:3306:3306"   # mysql
+      - "192.168.56.1:3632:3632"   # distccd
+      - "192.168.56.1:5432:5432"   # postgresql
+      - "192.168.56.1:6667:6667"   # UnrealIRCd backdoor
+      - "192.168.56.1:6697:6697"   # UnrealIRCd
+      - "192.168.56.1:8787:8787"   # drb (distributed ruby)

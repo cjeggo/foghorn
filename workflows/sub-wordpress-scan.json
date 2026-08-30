@@ -1,0 +1,85 @@
+{
+ "name": "Sub - WordPress Scan (wpscan)",
+ "active": true,
+ "settings": {
+  "executionOrder": "v1",
+  "callerPolicy": "workflowsFromSameOwner",
+  "availableInMCP": false
+ },
+ "nodes": [
+  {
+   "parameters": {
+    "workflowInputs": {
+     "values": [
+      {
+       "name": "target"
+      },
+      {
+       "name": "origin"
+      }
+     ]
+    }
+   },
+   "id": "b2000000-0000-4000-8000-000000000001",
+   "name": "When Called",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "command": "=timeout 320 wpscan --url {{ $json.origin }}/ --no-update --no-banner --format json --random-user-agent --enumerate p,t,u1-10,cb,dbe --plugins-detection passive --throttle 200 --request-timeout 20 --connect-timeout 10 ${WPSCAN_API_TOKEN:+--api-token $WPSCAN_API_TOKEN}"
+   },
+   "id": "b2000000-0000-4000-8000-000000000002",
+   "name": "Run WPScan",
+   "type": "n8n-nodes-base.executeCommand",
+   "typeVersion": 1,
+   "position": [
+    224,
+    300
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "\n// Parse wpscan --format json output into a structured object the parent\n// workflow's deterministic report builder can consume. wpscan exits non-zero\n// when it finds vulns or hits an internal abort - onError:continueRegularOutput\n// on the previous node means stdout still reaches us either way.\nconst raw = ($json.stdout || '').trim();\nconst origin = $json.origin || ($('When Called').item.json.origin);\n\nlet d;\ntry {\n  const start = raw.indexOf('{');\n  d = start >= 0 ? JSON.parse(raw.slice(start)) : null;\n} catch (e) {\n  d = null;\n}\n\nif (!d) {\n  return [{ json: { ran: false, error: 'wpscan produced no parseable JSON', stderrExcerpt: ($json.stderr || '').slice(0, 500) } }];\n}\nif (d.scan_aborted) {\n  return [{ json: { ran: false, error: d.scan_aborted } }];\n}\n\nconst vulnList = (arr) => (arr || []).map(v => ({\n  title: v.title,\n  fixedIn: v.fixed_in || null,\n  refs: [].concat(\n    (v.references && v.references.cve || []).map(c => 'CVE-' + c),\n    (v.references && v.references.url || [])\n  ).slice(0, 6),\n}));\n\nconst core = d.version || {};\nconst mainTheme = d.main_theme || {};\n\nconst plugins = Object.entries(d.plugins || {}).map(([slug, p]) => ({\n  slug,\n  version: (p.version && p.version.number) || null,\n  outdated: !!p.outdated,\n  latestVersion: p.latest_version || null,\n  vulns: vulnList(p.vulnerabilities),\n}));\nconst themes = Object.entries(d.themes || {}).map(([slug, t]) => ({\n  slug,\n  version: (t.version && t.version.number) || null,\n  outdated: !!t.outdated,\n  vulns: vulnList(t.vulnerabilities),\n}));\n\nconst users = Object.keys(d.users || {});\n\nconst findings = (d.interesting_findings || []).map(f => ({\n  type: f.type,\n  detail: f.to_s,\n  url: f.url,\n  metasploit: (f.references && f.references.metasploit) || [],\n}));\nconst hasType = (t) => findings.some(f => f.type === t);\n\nconst backups = Object.keys(d.config_backups || {});\nconst dbExports = Object.keys(d.db_exports || {});\n\n// No API token => wpscan does not output vulnerability data for detected\n// components. Surface that honestly so a clean report isn't read as \"no\n// vulns\" when it really means \"not checked\".\nconst vulnDataAvailable = !(d.vuln_api && d.vuln_api.error);\n\nreturn [{ json: {\n  ran: true,\n  origin,\n  coreVersion: core.number || null,\n  coreStatus: core.status || null,\n  coreVulns: vulnList(core.vulnerabilities),\n  mainTheme: { slug: mainTheme.slug || null, version: (mainTheme.version && mainTheme.version.number) || null, outdated: !!mainTheme.outdated, vulns: vulnList(mainTheme.vulnerabilities) },\n  plugins,\n  themes,\n  users,\n  xmlrpcEnabled: hasType('xmlrpc'),\n  readmeExposed: hasType('readme'),\n  wpCronEnabled: hasType('wp_cron'),\n  uploadDirListing: hasType('upload_directory_listing'),\n  configBackups: backups,\n  dbExports,\n  interestingFindings: findings,\n  vulnDataAvailable,\n  requestsDone: d.requests_done || null,\n} }];\n"
+   },
+   "id": "b2000000-0000-4000-8000-000000000003",
+   "name": "Parse WPScan",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    448,
+    300
+   ]
+  }
+ ],
+ "connections": {
+  "When Called": {
+   "main": [
+    [
+     {
+      "node": "Run WPScan",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Run WPScan": {
+   "main": [
+    [
+     {
+      "node": "Parse WPScan",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "id": "v0I742FVkJROVPWI"
+}
