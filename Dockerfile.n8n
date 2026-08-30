@@ -34,16 +34,26 @@ RUN apk add --no-cache bind-tools nmap nmap-scripts whois python3 py3-pip git ti
     ln -s /opt/testssl.sh/testssl.sh /usr/local/bin/testssl.sh && \
     npm install -g n8n retire
 # WPScan (Ruby gem) - drives the WordPress branch: core/plugin/theme version
-# + vuln enumeration, user enumeration, XML-RPC/REST exposure. Same "grab it
-# from its real distribution channel" pattern as sqlmap (pip) / gobuster
-# (binary). Separate RUN layer so a wpscan rebuild doesn't re-run the slow
-# recon-ng/testssl clone above. No WPScan API token configured -> enumeration
-# works, vuln-database CVE correlation is skipped (documented limitation).
+# enumeration, user enumeration, XML-RPC/REST exposure. CVE lookup for the
+# detected versions is done against NVD downstream (no paid WPScan token).
+# Same "grab it from its real distribution channel" pattern as sqlmap (pip) /
+# gobuster (binary). Separate RUN layer so a wpscan rebuild doesn't re-run the
+# slow recon-ng/testssl clone above.
 # ponytail: build-base/ruby-dev left in the image (~200MB) rather than apk-del
 # after - prune on the on-prem server build if image size ever matters.
 RUN apk add --no-cache ruby ruby-dev build-base libffi-dev && \
     gem install --no-document wpscan
+# nuclei - templated scanner (known CVEs, exposed panels, misconfigurations,
+# default logins). Complements ZAP's generic active scan. Go binary release,
+# same pattern as gobuster. Templates baked in at build time (like the wpscan
+# DB); scans run with -duc so they don't call out to check for updates.
+ARG NUCLEI_VERSION=3.11.1
+RUN apk add --no-cache unzip libc6-compat && \
+    NUCLEI_ARCH=$(uname -m | sed 's/aarch64/arm64/;s/x86_64/amd64/') && \
+    curl -sL -o /tmp/nuclei.zip "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_${NUCLEI_ARCH}.zip" && \
+    unzip -j /tmp/nuclei.zip nuclei -d /usr/local/bin && rm /tmp/nuclei.zip
 USER node
+RUN nuclei -update-templates || true
 # Bake the WPScan vulnerability database into the image (free, no API token
 # needed for the DB itself). wpscan 4.x refuses to run at all without it, even
 # for enumeration-only. Scans then run with --no-update so they don't each

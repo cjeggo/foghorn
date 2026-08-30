@@ -1,0 +1,111 @@
+{
+ "name": "Sub - Nuclei Scan",
+ "nodes": [
+  {
+   "parameters": {
+    "workflowInputs": {
+     "values": [
+      {
+       "name": "target"
+      },
+      {
+       "name": "origin"
+      },
+      {
+       "name": "urls"
+      }
+     ]
+    }
+   },
+   "id": "b3000000-0000-4000-8000-000000000001",
+   "name": "When Called",
+   "type": "n8n-nodes-base.executeWorkflowTrigger",
+   "typeVersion": 1.1,
+   "position": [
+    0,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst origin = ($json.origin || '').replace(/\\/$/, '');\n// Scan the origin only. nuclei's exposure/misconfig/default-login templates\n// probe their own known paths off the base URL (that's how /metrics, /.git,\n// /actuator etc. get found) - a per-URL fan-out multiplies runtime into the\n// tens of minutes for little extra coverage. CVE/vulnerabilities/panels dirs\n// are excluded: thousands of templates, and CVEs come from nmap-vulners +\n// the WordPress NVD lookup which this then dedups against.\nconst q = origin.replace(/'/g, `'\\\\''`);\nconst cmd = `timeout 300 nuclei -u '${q}' -jsonl -or -nc -silent -duc -dast=false `\n  + `-rl 60 -c 40 -timeout 10 -retries 1 -exclude-tags dos,fuzz,fuzzing-templates -es info,unknown `\n  + `-t http/exposures/ -t http/misconfiguration/ -t http/default-logins/ 2>/dev/null || true`;\nreturn [{ json: { nucleiCmd: cmd, origin } }];\n"
+   },
+   "id": "b3000000-0000-4000-8000-000000000002",
+   "name": "Build Nuclei Command",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    224,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "command": "={{ $json.nucleiCmd }}"
+   },
+   "id": "b3000000-0000-4000-8000-000000000003",
+   "name": "Run Nuclei",
+   "type": "n8n-nodes-base.executeCommand",
+   "typeVersion": 1,
+   "position": [
+    448,
+    300
+   ],
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst raw = $json.stdout || '';\nconst rows = [];\nfor (const line of raw.split(/\\r?\\n/)) {\n  const s = line.trim();\n  if (!s || s[0] !== '{') continue;\n  let o; try { o = JSON.parse(s); } catch (e) { continue; }\n  const info = o.info || {};\n  const cls = info.classification || {};\n  const cves = ([].concat(cls['cve-id'] || [])).map(c => String(c).toUpperCase());\n  rows.push({\n    templateId: o['template-id'] || o.templateID || 'unknown',\n    name: info.name || o['template-id'] || 'unknown',\n    severity: String(info.severity || 'unknown').toLowerCase(),\n    tags: [].concat(info.tags || []).map(t => String(t).toLowerCase()),\n    cve: cves[0] || null,\n    cves,\n    cvss: cls['cvss-score'] || null,\n    matchedAt: o['matched-at'] || o.host || null,\n    type: o.type || 'http',\n  });\n}\n\nconst seen = new Set();\nconst findings = [];\nfor (const f of rows) {\n  const k = f.templateId + '|' + f.matchedAt;\n  if (seen.has(k)) continue;\n  seen.add(k);\n  findings.push(f);\n}\nconst order = { critical: 0, high: 1, medium: 2, low: 3, unknown: 4, info: 5 };\nfindings.sort((a, b) => (order[a.severity] ?? 9) - (order[b.severity] ?? 9));\n\nreturn [{ json: { ran: true, findings, findingCount: findings.length } }];\n"
+   },
+   "id": "b3000000-0000-4000-8000-000000000004",
+   "name": "Parse Nuclei",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    672,
+    300
+   ]
+  }
+ ],
+ "connections": {
+  "When Called": {
+   "main": [
+    [
+     {
+      "node": "Build Nuclei Command",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Nuclei Command": {
+   "main": [
+    [
+     {
+      "node": "Run Nuclei",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Run Nuclei": {
+   "main": [
+    [
+     {
+      "node": "Parse Nuclei",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "callerPolicy": "workflowsFromSameOwner",
+  "availableInMCP": false
+ },
+ "id": "3adsawEckrIPPirW"
+}

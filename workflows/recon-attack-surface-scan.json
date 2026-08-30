@@ -72,6 +72,17 @@
          }
         ]
        }
+      },
+      {
+       "fieldLabel": "nucleiScan",
+       "fieldType": "checkbox",
+       "fieldOptions": {
+        "values": [
+         {
+          "option": "Run nuclei templated scan (known CVEs, exposed panels/files, misconfigurations, default credentials) against the discovered URLs"
+         }
+        ]
+       }
       }
      ]
     },
@@ -89,7 +100,7 @@
   },
   {
    "parameters": {
-    "jsCode": "const raw = (($json.target) || '').trim().toLowerCase();\nconst authorized = Array.isArray($json.authorized) && $json.authorized.length > 0;\nconst hostnameRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;\nconst ipv4Re = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\nconst ipv6Re = /^[0-9a-f:]+$/i;\nconst cidrRe = /^(\\d{1,3}\\.){3}\\d{1,3}\\/(\\d{1,2})$/;\nconst cidrMatch = raw.match(cidrRe);\nlet isCidr = false, blocked = null;\nif (cidrMatch) {\n  const prefix = Number(cidrMatch[2]);\n  if (!authorized) { blocked = 'authorization checkbox not confirmed'; }\n  else if (prefix < 24) { blocked = `CIDR range too large (/${prefix} - this tool bounds network sweeps to /24 or smaller, max 256 addresses)`; }\n  else { isCidr = true; }\n  return [{ json: { target: raw, isIp: false, isCidr, scanIntensity: $json.scanIntensity || 'dns-only', sqlInjectionTest: Array.isArray($json.sqlInjectionTest) && $json.sqlInjectionTest.length > 0, webVulnScan: Array.isArray($json.webVulnScan) && $json.webVulnScan.length > 0, wordpressScan: Array.isArray($json.wordpressScan) && $json.wordpressScan.length > 0, blocked } }];\n}\nconst isIp = ipv4Re.test(raw) || (raw.includes(':') && ipv6Re.test(raw));\nconst valid = raw.length > 0 && raw.length < 254 && (isIp || hostnameRe.test(raw));\nblocked = !authorized ? 'authorization checkbox not confirmed' : (!valid ? 'target failed validation' : null);\nreturn [{ json: { target: raw, isIp, isCidr: false, scanIntensity: $json.scanIntensity || 'dns-only', sqlInjectionTest: Array.isArray($json.sqlInjectionTest) && $json.sqlInjectionTest.length > 0, webVulnScan: Array.isArray($json.webVulnScan) && $json.webVulnScan.length > 0, wordpressScan: Array.isArray($json.wordpressScan) && $json.wordpressScan.length > 0, blocked } }];\n"
+    "jsCode": "const raw = (($json.target) || '').trim().toLowerCase();\nconst authorized = Array.isArray($json.authorized) && $json.authorized.length > 0;\nconst hostnameRe = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/;\nconst ipv4Re = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\nconst ipv6Re = /^[0-9a-f:]+$/i;\nconst cidrRe = /^(\\d{1,3}\\.){3}\\d{1,3}\\/(\\d{1,2})$/;\nconst cidrMatch = raw.match(cidrRe);\nlet isCidr = false, blocked = null;\nif (cidrMatch) {\n  const prefix = Number(cidrMatch[2]);\n  if (!authorized) { blocked = 'authorization checkbox not confirmed'; }\n  else if (prefix < 24) { blocked = `CIDR range too large (/${prefix} - this tool bounds network sweeps to /24 or smaller, max 256 addresses)`; }\n  else { isCidr = true; }\n  return [{ json: { target: raw, isIp: false, isCidr, scanIntensity: $json.scanIntensity || 'dns-only', sqlInjectionTest: Array.isArray($json.sqlInjectionTest) && $json.sqlInjectionTest.length > 0, webVulnScan: Array.isArray($json.webVulnScan) && $json.webVulnScan.length > 0, wordpressScan: Array.isArray($json.wordpressScan) && $json.wordpressScan.length > 0, nucleiScan: Array.isArray($json.nucleiScan) && $json.nucleiScan.length > 0, blocked } }];\n}\nconst isIp = ipv4Re.test(raw) || (raw.includes(':') && ipv6Re.test(raw));\nconst valid = raw.length > 0 && raw.length < 254 && (isIp || hostnameRe.test(raw));\nblocked = !authorized ? 'authorization checkbox not confirmed' : (!valid ? 'target failed validation' : null);\nreturn [{ json: { target: raw, isIp, isCidr: false, scanIntensity: $json.scanIntensity || 'dns-only', sqlInjectionTest: Array.isArray($json.sqlInjectionTest) && $json.sqlInjectionTest.length > 0, webVulnScan: Array.isArray($json.webVulnScan) && $json.webVulnScan.length > 0, wordpressScan: Array.isArray($json.wordpressScan) && $json.wordpressScan.length > 0, nucleiScan: Array.isArray($json.nucleiScan) && $json.nucleiScan.length > 0, blocked } }];\n"
    },
    "id": "a1000000-0000-4000-8000-000000000002",
    "name": "Validate & Normalize",
@@ -195,7 +206,7 @@
   },
   {
    "parameters": {
-    "jsCode": "\nconst norm = $('Validate & Normalize').item.json;\nconst recon = $('Recon Target').item.json;\nconst xml = $json.stdout || '';\nconst hostBlockRe = /<host>([\\s\\S]*?)<\\/host>/g;\nconst hosts = [];\nlet hm;\nwhile ((hm = hostBlockRe.exec(xml)) !== null) {\n  const block = hm[1];\n  if (!/<status state=\"up\"/.test(block)) continue;\n  const addrMatch = block.match(/<address addr=\"([\\d.]+)\" addrtype=\"ipv4\"/);\n  if (addrMatch) hosts.push(addrMatch[1]);\n}\nconst prefixMatch = norm.target.match(/\\/(\\d{1,2})$/);\nconst prefix = prefixMatch ? Number(prefixMatch[1]) : 24;\nconst totalInRange = Math.pow(2, 32 - prefix);\nconst ratio = totalInRange > 0 ? hosts.length / totalInRange : 0;\n\nif (hosts.length === 0) {\n  return [{ json: { noHostsFound: true, cidr: norm.target, hostsDiscovered: 0, totalInRange } }];\n}\nif (ratio > 0.5) {\n  return [{ json: { unroutable: true, cidr: norm.target, hostsDiscovered: hosts.length, totalInRange } }];\n}\nconst capped = hosts.slice(0, 20);\nreturn capped.map((ip) => ({ json: {\n  target: ip, isIp: true, scanIntensity: norm.scanIntensity,\n  sqlInjectionTest: recon.sqlInjectionTest, webVulnScan: recon.webVulnScan, wordpressScan: recon.wordpressScan,\n  __cidr: norm.target, __hostsDiscovered: hosts.length, __hostsScanned: capped.length,\n} }));\n"
+    "jsCode": "\nconst norm = $('Validate & Normalize').item.json;\nconst recon = $('Recon Target').item.json;\nconst xml = $json.stdout || '';\nconst hostBlockRe = /<host>([\\s\\S]*?)<\\/host>/g;\nconst hosts = [];\nlet hm;\nwhile ((hm = hostBlockRe.exec(xml)) !== null) {\n  const block = hm[1];\n  if (!/<status state=\"up\"/.test(block)) continue;\n  const addrMatch = block.match(/<address addr=\"([\\d.]+)\" addrtype=\"ipv4\"/);\n  if (addrMatch) hosts.push(addrMatch[1]);\n}\nconst prefixMatch = norm.target.match(/\\/(\\d{1,2})$/);\nconst prefix = prefixMatch ? Number(prefixMatch[1]) : 24;\nconst totalInRange = Math.pow(2, 32 - prefix);\nconst ratio = totalInRange > 0 ? hosts.length / totalInRange : 0;\n\nif (hosts.length === 0) {\n  return [{ json: { noHostsFound: true, cidr: norm.target, hostsDiscovered: 0, totalInRange } }];\n}\nif (ratio > 0.5) {\n  return [{ json: { unroutable: true, cidr: norm.target, hostsDiscovered: hosts.length, totalInRange } }];\n}\nconst capped = hosts.slice(0, 20);\nreturn capped.map((ip) => ({ json: {\n  target: ip, isIp: true, scanIntensity: norm.scanIntensity,\n  sqlInjectionTest: recon.sqlInjectionTest, webVulnScan: recon.webVulnScan, wordpressScan: recon.wordpressScan, nucleiScan: recon.nucleiScan,\n  __cidr: norm.target, __hostsDiscovered: hosts.length, __hostsScanned: capped.length,\n} }));\n"
    },
    "id": "a1000000-0000-4000-8000-000000000007",
    "name": "Parse Live Hosts",
@@ -220,7 +231,8 @@
       "scanIntensity": "={{ $json.scanIntensity }}",
       "sqlInjectionTest": "={{ $json.sqlInjectionTest !== undefined ? $json.sqlInjectionTest : $('Validate & Normalize').item.json.sqlInjectionTest }}",
       "webVulnScan": "={{ $json.webVulnScan !== undefined ? $json.webVulnScan : $('Validate & Normalize').item.json.webVulnScan }}",
-      "wordpressScan": "={{ $json.wordpressScan !== undefined ? $json.wordpressScan : $('Validate & Normalize').item.json.wordpressScan }}"
+      "wordpressScan": "={{ $json.wordpressScan !== undefined ? $json.wordpressScan : $('Validate & Normalize').item.json.wordpressScan }}",
+      "nucleiScan": "={{ $json.nucleiScan !== undefined ? $json.nucleiScan : $('Validate & Normalize').item.json.nucleiScan }}"
      }
     },
     "options": {
@@ -341,7 +353,8 @@
       "scanIntensity": "={{ $json.scanIntensity }}",
       "sqlInjectionTest": "={{ $('Validate & Normalize').item.json.sqlInjectionTest }}",
       "webVulnScan": "={{ $('Validate & Normalize').item.json.webVulnScan }}",
-      "wordpressScan": "={{ $('Validate & Normalize').item.json.wordpressScan }}"
+      "wordpressScan": "={{ $('Validate & Normalize').item.json.wordpressScan }}",
+      "nucleiScan": "={{ $('Validate & Normalize').item.json.nucleiScan }}"
      }
     },
     "options": {
