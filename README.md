@@ -11,12 +11,10 @@ anonymous external attacker would. It does not authenticate and it does not run
 exploits — it names the exploit and leaves it to a human (or the separate,
 parked exploitation phase).
 
-Layers onto the existing `n8n-local` podman stack rather than duplicating it. See
-`docs/recon-workflow-design.md` for the full design history and rationale.
+Layers onto the existing `n8n-local` podman stack rather than duplicating it.
 
 Status: PoC, running on a laptop against local test targets. Next phase is a
-dedicated on-prem server before any real-target work — see the Obsidian vault
-(`security-testing-platform/Plans/`).
+dedicated on-prem server before any real-target work.
 
 ---
 
@@ -176,5 +174,4 @@ network-sweep summary.
   - `sub-sql-injection-test.json`, `sub-web-vulnerability-scan.json`,
     `sub-wordpress-scan.json`, `sub-nuclei-scan.json` — dispatched heavy tools
 - `scripts/n8n_sync.py` — repo ↔ live workflow sync
-- `docs/recon-workflow-design.md` — design doc
-- `CLAUDE.md` — engagement rules and methodology for AI-assisted work in this repo
+- `docs/future-improvements.md` — parked ideas, not committed work
