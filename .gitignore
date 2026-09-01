@@ -1,2 +1,7 @@
 .env
 .n8n-api-key
+
+# Internal — never commit. Contains client/company context (see public-repo
+# hygiene rule in CLAUDE.md). This repo may go public one day.
+CLAUDE.md
+docs/recon-workflow-design.md
