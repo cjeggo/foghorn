@@ -11,10 +11,11 @@ anonymous external attacker would. It does not authenticate and it does not run
 exploits — it names the exploit and leaves it to a human (or the separate,
 parked exploitation phase).
 
-Layers onto the existing `n8n-local` podman stack rather than duplicating it.
+Layered as a podman compose override on an n8n + Postgres + Qdrant base stack
+rather than duplicating it — see [Setup](#setup).
 
-Status: PoC, running on a laptop against local test targets. Next phase is a
-dedicated on-prem server before any real-target work.
+Status: PoC. Runs locally against the bundled test targets; not yet pointed at
+any real target.
 
 ---
 
@@ -30,34 +31,110 @@ deliberately excluded even where a tool supports them.
 
 ---
 
-## Running it
+## Setup
 
-The platform is a custom n8n image plus a ZAP sidecar, layered onto the
-`n8n-local` compose project.
+The deployment below is the **PoC setup**: a single host, every service local,
+placeholder secrets, and the bundled deliberately-vulnerable test targets. Notes
+marked **On real hardware** flag what would change for an actual deployment.
+
+The platform is a custom n8n image (recon tooling baked in) plus an OWASP ZAP
+sidecar, layered as a compose override onto the
+[`self-hosted-ai-starter-kit`](https://github.com/n8n-io/self-hosted-ai-starter-kit)
+(n8n + Postgres + Qdrant). It runs under **podman**.
+
+### 1. Prerequisites
+
+- `podman` with `podman compose`
+- **Ollama** reachable from the host — used only for the two LLM-authored report
+  sections; the rest of the pipeline degrades gracefully if it's down
+- ~15 GB free disk for the image build — `nmap` + NSE, the `wpscan` vulnerability
+  DB, `nuclei` templates and a SecLists wordlist are all baked in at build time
+
+### 2. Directory layout
+
+Clone this repo and the base stack as **siblings** — the override compose
+references the base stack with `../` paths:
 
 ```
-cd ~/repo/n8n-local
-podman compose -f docker-compose.yml -f ../security-testing-platform/docker-compose.override.yml --profile fuzzing up -d --build
+<parent>/
+  security-testing-platform/   # this repo
+  n8n-local/                   # the base stack (next step)
 ```
 
-`--profile fuzzing` also starts the OWASP ZAP sidecar (needed for the ZAP branch
-and the AJAX-spider endpoint discovery).
+### 3. Base stack
 
-- n8n UI / scan form: `http://localhost:5678`
-- Local Ollama (`qwen3:8b`) must be running on the host for the LLM-authored
-  report section — `ollama serve`. The workflow degrades gracefully if it's down.
-- Scan reports land in `n8n-local/shared/recon/`.
+```
+git clone https://github.com/n8n-io/self-hosted-ai-starter-kit.git n8n-local
+cd n8n-local
+cp .env.example .env
+mkdir -p shared/recon
+```
 
-> On the macOS podman VM, `podman compose` has been unreliable (gvproxy socket,
-> network label conflicts). In practice the containers are run with plain
-> `podman run` and workflows are pushed with `scripts/n8n_sync.py` (below). A
-> native Linux host should not have these problems.
+The base compose puts n8n, Postgres and Qdrant on a shared `demo` network,
+mounts `./shared` into the n8n container, and sets
+`OLLAMA_HOST=host.containers.internal:11434` so n8n can reach an Ollama running
+on the host.
 
-### Test targets
+> **On real hardware:** `.env.example` ships throwaway values
+> (`N8N_ENCRYPTION_KEY=super-secret-key`, a default Postgres password, a
+> placeholder JWT secret). Replace all of them before the stack is reachable
+> from anything but localhost.
+
+### 4. Ollama
+
+```
+ollama pull qwen3:8b
+```
+
+> **On real hardware:** a larger model (14–32B class) noticeably improves the
+> generated report sections — see `docs/future-improvements.md`.
+
+### 5. Build and start
+
+```
+cd n8n-local
+podman compose \
+  -f docker-compose.yml \
+  -f ../security-testing-platform/docker-compose.override.yml \
+  --profile fuzzing up -d --build
+```
+
+`--profile fuzzing` also starts the ZAP sidecar, needed for the `webVulnScan`
+branch and AJAX-spider endpoint discovery. The first build is slow (tool
+downloads, the wpscan DB, nuclei templates). n8n comes up at
+`http://localhost:5678`.
+
+### 6. First-run n8n
+
+Open `http://localhost:5678` and create the owner account (local, one time).
+
+### 7. Ollama credential
+
+In n8n: **Credentials → New → Ollama**, base URL
+`http://host.containers.internal:11434`. Name it anything.
+
+### 8. Deploy the workflows
+
+`scripts/n8n_sync.py` pushes `workflows/*.json` into the running instance —
+creating the six workflows, re-linking the sub-workflow references, and
+activating them.
+
+```
+# in n8n: Settings → n8n API → create an API key
+cd security-testing-platform
+echo '<the key>' > .n8n-api-key        # gitignored
+scripts/n8n_sync.py deploy
+```
+
+Then open **Sub - Single Host Recon → Ollama Chat Model** and set its credential
+to the one from step 7 — the credential binding is the one thing `n8n_sync.py`
+can't carry.
+
+### 9. Test targets
 
 `test-targets/docker-compose.yml` is a **separate** stack (not tied to n8n's
-lifecycle) providing deliberately-vulnerable ground-truth targets on the shared
-`demo` network:
+lifecycle) — deliberately-vulnerable ground-truth targets on the same `demo`
+network:
 
 | Target | Image | Exercises |
 |---|---|---|
@@ -70,19 +147,27 @@ lifecycle) providing deliberately-vulnerable ground-truth targets on the shared
 
 ```
 podman compose -f test-targets/docker-compose.yml up -d
-test-targets/wp-setup.sh          # completes the WordPress installs, pins site URLs
+test-targets/wp-setup.sh          # finishes the WordPress installs, pins site URLs
 ```
 
-Deliberately-vulnerable services (metasploitable2, sqli-labs, the WordPress
-targets) publish host ports on `192.168.56.1` (the VirtualBox host-only adapter)
-so a Kali VM can reach them but the wider LAN cannot. metasploitable2's
-privileged ports use a `+10000` host-side offset because rootless podman on macOS
-can't bind ports below 1024.
+The vulnerable targets publish host ports on `192.168.56.1` (a host-only
+adapter) so a testing VM can reach them but the wider LAN cannot — edit the
+compose to `127.0.0.1` if you have no such adapter. metasploitable2's privileged
+ports use a `+10000` host-side offset (rootless podman can't bind below 1024).
+
+> **On real hardware:** don't run this stack anywhere but an isolated lab.
+
+### 10. Run a scan
+
+Open the **Recon / Attack-Surface Scan** form in n8n (the Form Trigger node on
+`recon-attack-surface-scan` shows its production URL). Enter a target, tick
+**authorized**, pick a `scanIntensity`, tick any active-test toggles, submit. The
+report lands in `n8n-local/shared/recon/<target>-<timestamp>.md`.
 
 ### Keeping workflows in sync
 
-The running n8n instance and `workflows/*.json` drift apart if edits are made in
-the UI without exporting (this has bitten the project). `scripts/n8n_sync.py`:
+The running instance and `workflows/*.json` drift apart if the workflows are
+edited in the UI without exporting (this has bitten the project):
 
 ```
 scripts/n8n_sync.py status     # show repo vs live drift
@@ -90,10 +175,10 @@ scripts/n8n_sync.py export     # live  -> workflows/*.json
 scripts/n8n_sync.py deploy     # workflows/*.json -> live (+ activate, re-link sub-workflow ids)
 ```
 
-Needs `N8N_API_KEY` (env, or a gitignored `.n8n-api-key` at the repo root).
+Needs `N8N_API_KEY` (env, or the gitignored `.n8n-api-key` at the repo root).
 **Run `export` after editing in the UI; run `deploy` after editing the JSON.**
 `deploy` matches workflows by name, so it also stands the platform up on a fresh
-n8n instance (creates missing workflows, rewrites sub-workflow references).
+n8n instance.
 
 ---
 
